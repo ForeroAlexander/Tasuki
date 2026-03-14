@@ -1,0 +1,71 @@
+# Tasuki Stack Profile: TypeScript + NestJS
+
+stack:
+  backend:
+    lang: typescript
+    framework: nestjs
+    version_cmd: "node --version"
+    run_cmd: "npm run start:dev"
+
+  conventions:
+    routing:
+      - "Use decorators: `@Controller()`, `@Get()`, `@Post()`, `@Put()`, `@Delete()`"
+      - "Auth via guards: `@UseGuards(JwtAuthGuard)` on controller or route"
+      - "Validation via pipes: `@Body(ValidationPipe) dto: CreateUserDto`"
+      - "DTOs with `class-validator` decorators for request validation"
+      - "Return typed response objects, never raw objects"
+      - "Use `@HttpCode(HttpStatus.CREATED)` for non-200 success responses"
+      - "Exception filters: `throw new NotFoundException()` not raw errors"
+
+    models:
+      - "Use TypeORM entities or Prisma models"
+      - "Timestamps: `@CreateDateColumn()` and `@UpdateDateColumn()` (TypeORM)"
+      - "Soft delete: `@DeleteDateColumn()` with `softDelete: true` in repository"
+      - "Relations: `@ManyToOne`, `@OneToMany` with eager/lazy option"
+      - "Use repository pattern: inject Repository via constructor"
+
+    migrations:
+      - "TypeORM: `npm run typeorm migration:generate`"
+      - "Prisma: `npx prisma migrate dev --name description`"
+      - "Always review generated SQL before applying"
+      - "Never auto-sync in production (`synchronize: false`)"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `@nestjs/testing` with `Test.createTestingModule()`"
+      - "Unit test services with mocked repositories"
+      - "E2E test controllers with `supertest` via `app.getHttpServer()`"
+      - "Mock external services — never hit real APIs"
+      - "Test guards: 401 without token, 403 wrong role"
+
+    docker:
+      - "Use `node:22-alpine` base image"
+      - "Multi-stage: build with devDependencies, run with production only"
+      - "Use `npm ci --production` in final stage"
+      - "Health checks: `curl -f http://localhost:3000/health`"
+
+  security_checks:
+    typescript:
+      - pattern: 'eval\s*\('
+        issue: "CODE INJECTION: eval() executes arbitrary code"
+        fix: "Use JSON.parse() or a safe alternative"
+      - pattern: 'innerHTML'
+        issue: "XSS: innerHTML assignment"
+        fix: "Use textContent or sanitize"
+      - pattern: 'synchronize:\s*true'
+        issue: "DB RISK: TypeORM synchronize in production drops data"
+        fix: "Use migrations, set synchronize: false"
+
+  tools:
+    linter: "eslint"
+    formatter: "prettier"
+    test_runner: "npm run test"
+    migration_cmd: "npm run typeorm migration:run"
+
+  mcp_suggestions:
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

@@ -1,0 +1,54 @@
+# Tasuki Stack Profile: Generic / Fallback
+# Used when no specific stack profile matches.
+# Provides universal conventions that apply to any codebase.
+
+stack:
+  backend:
+    lang: unknown
+    framework: unknown
+
+  conventions:
+    routing:
+      - "Every endpoint should require authentication unless explicitly public"
+      - "Use structured logging, never print()"
+      - "Return consistent response formats (not raw strings)"
+      - "Handle errors with proper status codes and messages"
+
+    models:
+      - "Use timestamps on all records (created_at, updated_at)"
+      - "Use soft deletes where appropriate (deleted_at)"
+      - "Define foreign key constraints explicitly"
+
+    migrations:
+      - "Migrations must be idempotent (safe to re-run)"
+      - "Include rollback/downgrade logic"
+      - "Never modify production data in migrations"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing (TDD)"
+      - "Mock external services — never hit real APIs in tests"
+      - "Test authentication: unauthorized access should fail"
+      - "Test edge cases: empty data, invalid input, boundary values"
+
+    docker:
+      - "Use slim/alpine base images"
+      - "Don't run as root — add a USER directive"
+      - "Include health checks"
+      - "Use .dockerignore to exclude unnecessary files"
+
+  security_checks:
+    universal:
+      - pattern: '(?i)(api_key|secret_key|password|api_secret|auth_token)\s*[:=]\s*["\x27][^\s"]{8,}'
+        issue: "HARDCODED SECRET: Possible hardcoded credential"
+        fix: "Use environment variables"
+
+  tools:
+    test_runner: "unknown"
+
+  mcp_suggestions:
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

@@ -1,0 +1,84 @@
+# Tasuki Stack Profile: Go + Gin
+# Convention database used by the onboard agent to populate agent templates.
+
+stack:
+  backend:
+    lang: go
+    framework: gin
+    version_cmd: "go version"
+    run_cmd: "go run ."
+
+  conventions:
+    routing:
+      - "Group routes: `v1 := r.Group('/api/v1')` with middleware"
+      - "Auth middleware: `v1.Use(middleware.AuthRequired())`"
+      - "Handler signature: `func(c *gin.Context)` — read params, call service, respond"
+      - "Use `c.ShouldBindJSON(&input)` for request parsing"
+      - "Return `c.JSON(http.StatusOK, response)` — use named status codes"
+      - "Error response: `c.AbortWithStatusJSON(code, gin.H{'error': msg})`"
+      - "Keep handlers thin — business logic in service layer"
+
+    models:
+      - "Use `gorm.Model` for ID, CreatedAt, UpdatedAt, DeletedAt"
+      - "Tags: `gorm:\"column:name;type:varchar(255);not null\"`"
+      - "JSON tags: `json:\"field_name\"` on every struct field"
+      - "Foreign keys: `gorm:\"foreignKey:UserID;constraint:OnDelete:CASCADE\"`"
+      - "Soft delete: `DeletedAt gorm.DeletedAt` (built-in with GORM)"
+      - "Use `*time.Time` for nullable timestamps"
+      - "Define interfaces for repository pattern"
+
+    migrations:
+      - "Use `golang-migrate` or `goose` for SQL migrations"
+      - "Migration files: `YYYYMMDDHHMMSS_description.up.sql` / `.down.sql`"
+      - "Always provide both up and down migrations"
+      - "Use `IF NOT EXISTS` / `IF EXISTS` for idempotency"
+      - "Never use GORM AutoMigrate in production"
+      - "Indexes: `CREATE INDEX CONCURRENTLY` for PostgreSQL"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `testing` package with `t.Run()` for subtests"
+      - "Use `httptest.NewRecorder()` for handler testing"
+      - "Use `testify/assert` and `testify/require` for assertions"
+      - "Table-driven tests for multiple input/output scenarios"
+      - "Mock interfaces with `mockgen` or hand-written mocks"
+      - "Use `t.Parallel()` for independent tests"
+
+    docker:
+      - "Multi-stage build: `golang:1.23-alpine` for build, `alpine:3.20` for run"
+      - "Use `CGO_ENABLED=0` for static binary"
+      - "Copy only the binary to final stage"
+      - "Run as non-root user: `USER nobody:nobody`"
+      - "Health checks: `wget -qO- http://localhost:8080/health || exit 1`"
+
+  security_checks:
+    go:
+      - pattern: 'fmt\.Sprintf.*SELECT\|fmt\.Sprintf.*INSERT\|fmt\.Sprintf.*UPDATE'
+        issue: "SQL INJECTION: fmt.Sprintf for SQL queries"
+        fix: "Use parameterized queries with $1, $2 placeholders"
+      - pattern: 'exec\.Command\s*\(.*\+\|exec\.Command\s*\(.*fmt'
+        issue: "COMMAND INJECTION: string concatenation in exec.Command"
+        fix: "Pass arguments as separate strings, not concatenated"
+      - pattern: 'template\.HTML\s*\('
+        issue: "XSS: template.HTML() bypasses Go template escaping"
+        fix: "Use text/template auto-escaping"
+      - pattern: 'http\.ListenAndServe\s*\('
+        issue: "SECURITY: Missing TLS and timeouts on HTTP server"
+        fix: "Use http.Server{} with ReadTimeout, WriteTimeout, and TLS"
+
+  tools:
+    linter: "golangci-lint run"
+    formatter: "gofmt -w ."
+    test_runner: "go test ./..."
+    migration_cmd: "migrate"
+
+  mcp_suggestions:
+    - name: postgres
+      package: "@bytebase/dbhub"
+      when: "database detected"
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

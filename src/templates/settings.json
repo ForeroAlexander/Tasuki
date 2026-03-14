@@ -1,0 +1,180 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash({{RUN_CMD}} *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(pnpm *)",
+      "Bash(yarn *)",
+      "Bash(bun *)",
+      "Bash(node *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(go *)",
+      "Bash(cargo *)",
+      "Bash(bundle *)",
+      "Bash(rails *)",
+      "Bash(rake *)",
+      "Bash(composer *)",
+      "Bash(php *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(docker *)",
+      "Bash(docker-compose *)",
+      "Bash(ls *)",
+      "Bash(cd *)",
+      "Bash(pwd)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(less *)",
+      "Bash(more *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(which *)",
+      "Bash(whereis *)",
+      "Bash(echo *)",
+      "Bash(printf *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(diff *)",
+      "Bash(tr *)",
+      "Bash(cut *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(xargs *)",
+      "Bash(tee *)",
+      "Bash(mkdir *)",
+      "Bash(touch *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(ln *)",
+      "Bash(chmod *)",
+      "Bash(chown *)",
+      "Bash(stat *)",
+      "Bash(file *)",
+      "Bash(du *)",
+      "Bash(df *)",
+      "Bash(env *)",
+      "Bash(export *)",
+      "Bash(source *)",
+      "Bash(date *)",
+      "Bash(basename *)",
+      "Bash(dirname *)",
+      "Bash(realpath *)",
+      "Bash(readlink *)",
+      "Bash(test *)",
+      "Bash(true)",
+      "Bash(false)",
+      "Bash(sleep *)",
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(ps *)",
+      "Bash(top *)",
+      "Bash(tar *)",
+      "Bash(gzip *)",
+      "Bash(gunzip *)",
+      "Bash(zip *)",
+      "Bash(unzip *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(rsync *)",
+      "Bash(ping *)",
+      "Bash(nslookup *)",
+      "Bash(dig *)",
+      "Bash(hostname *)",
+      "Bash(jq *)",
+      "Bash(yq *)",
+      "Bash(bc *)",
+      "Bash(pytest *)",
+      "Bash(vitest *)",
+      "Bash(jest *)",
+      "Bash(mocha *)",
+      "Bash(ruff *)",
+      "Bash(eslint *)",
+      "Bash(prettier *)",
+      "Bash(alembic *)",
+      "Bash(prisma *)",
+      "Bash(bandit *)",
+      "Bash(semgrep *)",
+      "Bash(gh *)",
+      "Bash(tasuki *)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "Agent(*)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -r *)",
+      "Bash(rmdir *)",
+      "Bash(> /dev/*)",
+      "Bash(mkfs *)",
+      "Bash(dd *)",
+      "Bash(format *)",
+      "Bash(shutdown *)",
+      "Bash(reboot *)",
+      "Bash(init *)",
+      "Bash(systemctl stop *)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(DROP TABLE *)",
+      "Bash(DROP DATABASE *)",
+      "Bash(TRUNCATE *)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PROJECT_PATH}}/.tasuki/hooks/pipeline-trigger.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|Bash|Agent|Glob|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PROJECT_PATH}}/.tasuki/hooks/pipeline-tracker.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PROJECT_PATH}}/.tasuki/hooks/protect-files.sh"
+          },
+          {
+            "type": "command",
+            "command": "{{PROJECT_PATH}}/.tasuki/hooks/security-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "{{PROJECT_PATH}}/.tasuki/hooks/tdd-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "{{PROJECT_PATH}}/.tasuki/hooks/force-agent-read.sh"
+          },
+          {
+            "type": "command",
+            "command": "{{PROJECT_PATH}}/.tasuki/hooks/force-planner-first.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

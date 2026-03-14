@@ -1,0 +1,38 @@
+# Domain Profile: Healthcare
+# Applied when: industry is healthcare, medical, HIPAA
+# Triggered by: interview answer containing healthcare, medical, HIPAA, patient, clinic, hospital
+
+match:
+  industry: "healthcare|medical|hipaa|patient|clinic|hospital|pharma|telehealth"
+
+directives:
+  planner:
+    - "HIPAA compliance: document PHI handling for every feature"
+    - "Access control: role-based + consent-based for patient data"
+    - "Audit: every access to patient records must be logged"
+    - "Data residency: consider where data is stored geographically"
+
+  qa:
+    - "Test PHI access controls: unauthorized users get 403, not 404"
+    - "Test audit log: every patient data read/write is logged"
+    - "Test data masking in non-production environments"
+    - "Test consent workflows: data only accessible with valid consent"
+
+  backend-dev:
+    - "PHI: never in logs, error messages, URLs, or query parameters"
+    - "Encryption: AES-256 for PHI at rest, TLS 1.3 in transit"
+    - "Access logging: log WHO accessed WHAT patient data WHEN"
+    - "Session timeout: auto-logout after 15 min inactivity"
+
+  db-architect:
+    - "PHI columns: encrypted at application level (not just disk encryption)"
+    - "Access log table: immutable, append-only, no DELETE permissions"
+    - "Consent tracking: consent_given_at, consent_revoked_at columns"
+    - "Data retention: automatic purge after retention period"
+
+  security:
+    - "HIPAA Security Rule compliance check"
+    - "Verify PHI is encrypted at rest and in transit"
+    - "Check: no PHI in logs, URLs, or error responses"
+    - "Verify audit trail is immutable and complete"
+    - "Check session management: timeout, concurrent sessions"

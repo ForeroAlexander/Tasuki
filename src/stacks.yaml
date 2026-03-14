@@ -1,0 +1,508 @@
+# Tasuki — Project Scaffolding Templates
+# Used by `tasuki init` to create new projects from scratch.
+# Each stack defines: structure, dependencies, config files, and deploy target.
+
+stacks:
+  nextjs:
+    name: Next.js (React)
+    description: Full-stack React framework with SSR, API routes, and Vercel deploy
+    lang: typescript
+    category: fullstack
+    deploy: vercel
+    structure:
+      - src/app/layout.tsx
+      - src/app/page.tsx
+      - src/app/globals.css
+      - src/app/api/health/route.ts
+      - src/components/.gitkeep
+      - src/lib/.gitkeep
+      - public/.gitkeep
+      - .env.example
+      - .gitignore
+      - next.config.js
+      - package.json
+      - tsconfig.json
+      - README.md
+    files:
+      "package.json": |
+        {
+          "name": "{{PROJECT_NAME}}",
+          "version": "0.1.0",
+          "private": true,
+          "scripts": {
+            "dev": "next dev",
+            "build": "next build",
+            "start": "next start",
+            "lint": "next lint"
+          },
+          "dependencies": {
+            "next": "^15.0.0",
+            "react": "^19.0.0",
+            "react-dom": "^19.0.0"
+          },
+          "devDependencies": {
+            "@types/node": "^22.0.0",
+            "@types/react": "^19.0.0",
+            "typescript": "^5.7.0"
+          }
+        }
+      "src/app/layout.tsx": |
+        import type { Metadata } from 'next'
+        import './globals.css'
+
+        export const metadata: Metadata = {
+          title: '{{PROJECT_NAME}}',
+          description: '{{PROJECT_DESCRIPTION}}',
+        }
+
+        export default function RootLayout({ children }: { children: React.ReactNode }) {
+          return (
+            <html lang="en">
+              <body>{children}</body>
+            </html>
+          )
+        }
+      "src/app/page.tsx": |
+        export default function Home() {
+          return (
+            <main>
+              <h1>{{PROJECT_NAME}}</h1>
+              <p>Ready to build.</p>
+            </main>
+          )
+        }
+      "src/app/globals.css": |
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; }
+      "src/app/api/health/route.ts": |
+        import { NextResponse } from 'next/server'
+        export async function GET() {
+          return NextResponse.json({ status: 'ok' })
+        }
+      "next.config.js": |
+        /** @type {import('next').NextConfig} */
+        const nextConfig = {}
+        module.exports = nextConfig
+      "tsconfig.json": |
+        {
+          "compilerOptions": {
+            "target": "ES2017",
+            "lib": ["dom", "dom.iterable", "esnext"],
+            "allowJs": true,
+            "skipLibCheck": true,
+            "strict": true,
+            "noEmit": true,
+            "esModuleInterop": true,
+            "module": "esnext",
+            "moduleResolution": "bundler",
+            "resolveJsonModule": true,
+            "isolatedModules": true,
+            "jsx": "preserve",
+            "incremental": true,
+            "paths": { "@/*": ["./src/*"] }
+          },
+          "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+          "exclude": ["node_modules"]
+        }
+      ".env.example": |
+        # {{PROJECT_NAME}} environment variables
+        NODE_ENV=development
+      ".gitignore": |
+        node_modules/
+        .next/
+        out/
+        .env
+        .env.local
+        *.tsbuildinfo
+      "README.md": |
+        # {{PROJECT_NAME}}
+        {{PROJECT_DESCRIPTION}}
+
+        ## Getting started
+        ```bash
+        npm install
+        npm run dev
+        ```
+    post_init: |
+      npm install
+
+  sveltekit:
+    name: "SvelteKit"
+    description: "Full-stack Svelte framework with SSR, API routes, and Vercel/Netlify deploy"
+    lang: typescript
+    category: fullstack
+    deploy: vercel
+    structure:
+      - src/routes/+layout.svelte
+      - src/routes/+page.svelte
+      - src/lib/.gitkeep
+      - src/app.css
+      - static/.gitkeep
+      - .env.example
+      - .gitignore
+      - package.json
+      - svelte.config.js
+      - vite.config.ts
+      - tsconfig.json
+      - README.md
+    files:
+      "package.json": |
+        {
+          "name": "{{PROJECT_NAME}}",
+          "version": "0.1.0",
+          "private": true,
+          "scripts": {
+            "dev": "vite dev",
+            "build": "vite build",
+            "preview": "vite preview"
+          },
+          "devDependencies": {
+            "@sveltejs/adapter-auto": "^4.0.0",
+            "@sveltejs/kit": "^2.0.0",
+            "svelte": "^5.0.0",
+            "typescript": "^5.7.0",
+            "vite": "^6.0.0"
+          }
+        }
+      "svelte.config.js": |
+        import adapter from '@sveltejs/adapter-auto';
+        export default { kit: { adapter: adapter() } };
+      "vite.config.ts": |
+        import { sveltekit } from '@sveltejs/kit/vite';
+        import { defineConfig } from 'vite';
+        export default defineConfig({ plugins: [sveltekit()] });
+      "src/routes/+layout.svelte": |
+        <script>import '../app.css';</script>
+        <slot />
+      "src/routes/+page.svelte": |
+        <h1>{{PROJECT_NAME}}</h1>
+        <p>Ready to build.</p>
+      "src/app.css": |
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; }
+      "tsconfig.json": |
+        { "extends": "./.svelte-kit/tsconfig.json" }
+      ".env.example": |
+        # {{PROJECT_NAME}} environment variables
+      ".gitignore": |
+        node_modules/
+        .svelte-kit/
+        build/
+        .env
+      "README.md": |
+        # {{PROJECT_NAME}}
+        {{PROJECT_DESCRIPTION}}
+
+        ## Getting started
+        ```bash
+        npm install
+        npm run dev
+        ```
+    post_init: |
+      npm install
+
+  fastapi:
+    name: "FastAPI (Python)"
+    description: "Python API backend with SQLAlchemy, Alembic, and Docker"
+    lang: python
+    category: backend
+    deploy: docker
+    structure:
+      - app/__init__.py
+      - app/main.py
+      - app/db.py
+      - app/deps.py
+      - app/models/__init__.py
+      - app/routers/__init__.py
+      - app/schemas/__init__.py
+      - app/services/__init__.py
+      - tests/__init__.py
+      - tests/conftest.py
+      - alembic/env.py
+      - alembic/versions/.gitkeep
+      - alembic.ini
+      - requirements.txt
+      - Dockerfile
+      - docker-compose.yml
+      - .env.example
+      - .gitignore
+      - README.md
+    files:
+      "app/main.py": |
+        from fastapi import FastAPI
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app = FastAPI(title="{{PROJECT_NAME}}")
+
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+        @app.get("/health")
+        async def health():
+            return {"status": "ok"}
+      "app/__init__.py": ""
+      "app/db.py": |
+        import os
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker, DeclarativeBase
+
+        DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
+        engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(bind=engine)
+
+        class Base(DeclarativeBase):
+            pass
+
+        def get_db():
+            db = SessionLocal()
+            try:
+                yield db
+            finally:
+                db.close()
+      "app/deps.py": |
+        # Dependency injection utilities
+        pass
+      "app/models/__init__.py": ""
+      "app/routers/__init__.py": ""
+      "app/schemas/__init__.py": ""
+      "app/services/__init__.py": ""
+      "tests/__init__.py": ""
+      "tests/conftest.py": |
+        import pytest
+        # Add fixtures here
+      "requirements.txt": |
+        fastapi==0.115.0
+        uvicorn==0.32.0
+        sqlalchemy==2.0.36
+        alembic==1.14.0
+        python-dotenv==1.0.1
+        httpx==0.28.0
+        pytest==8.3.0
+      "Dockerfile": |
+        FROM python:3.12-slim
+        WORKDIR /app
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        COPY . .
+        USER nobody
+        CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+      "docker-compose.yml": |
+        services:
+          api:
+            build: .
+            ports:
+              - "8000:8000"
+            env_file: .env
+            depends_on:
+              - db
+          db:
+            image: postgres:16-alpine
+            environment:
+              POSTGRES_DB: {{PROJECT_NAME}}
+              POSTGRES_USER: postgres
+              POSTGRES_PASSWORD: postgres
+            ports:
+              - "5432:5432"
+            volumes:
+              - pgdata:/var/lib/postgresql/data
+        volumes:
+          pgdata:
+      "alembic.ini": |
+        [alembic]
+        script_location = alembic
+        sqlalchemy.url = sqlite:///./dev.db
+      "alembic/env.py": |
+        from alembic import context
+        from app.db import Base, engine
+        target_metadata = Base.metadata
+        # Basic alembic env - customize as needed
+      "alembic/versions/.gitkeep": ""
+      ".env.example": |
+        DATABASE_URL=postgresql://postgres:postgres@localhost:5432/{{PROJECT_NAME}}
+      ".gitignore": |
+        __pycache__/
+        *.pyc
+        .env
+        *.db
+        .pytest_cache/
+        alembic/versions/__pycache__/
+      "README.md": |
+        # {{PROJECT_NAME}}
+        {{PROJECT_DESCRIPTION}}
+
+        ## Getting started
+        ```bash
+        pip install -r requirements.txt
+        uvicorn app.main:app --reload
+        ```
+
+  express:
+    name: "Express.js (Node)"
+    description: "Node.js REST API with Express, TypeScript, and Docker"
+    lang: typescript
+    category: backend
+    deploy: docker
+    structure:
+      - src/index.ts
+      - src/routes/.gitkeep
+      - src/middleware/.gitkeep
+      - src/models/.gitkeep
+      - tests/.gitkeep
+      - .env.example
+      - .gitignore
+      - package.json
+      - tsconfig.json
+      - Dockerfile
+      - README.md
+    files:
+      "package.json": |
+        {
+          "name": "{{PROJECT_NAME}}",
+          "version": "0.1.0",
+          "scripts": {
+            "dev": "tsx watch src/index.ts",
+            "build": "tsc",
+            "start": "node dist/index.js",
+            "test": "vitest"
+          },
+          "dependencies": {
+            "express": "^5.0.0",
+            "cors": "^2.8.5",
+            "dotenv": "^16.4.0"
+          },
+          "devDependencies": {
+            "@types/express": "^5.0.0",
+            "@types/cors": "^2.8.17",
+            "@types/node": "^22.0.0",
+            "tsx": "^4.19.0",
+            "typescript": "^5.7.0",
+            "vitest": "^3.0.0"
+          }
+        }
+      "src/index.ts": |
+        import express from 'express';
+        import cors from 'cors';
+        import 'dotenv/config';
+
+        const app = express();
+        const port = process.env.PORT || 3000;
+
+        app.use(cors());
+        app.use(express.json());
+
+        app.get('/health', (req, res) => {
+          res.json({ status: 'ok' });
+        });
+
+        app.listen(port, () => {
+          console.log(`Server running on port ${port}`);
+        });
+      "tsconfig.json": |
+        {
+          "compilerOptions": {
+            "target": "ES2022",
+            "module": "NodeNext",
+            "moduleResolution": "NodeNext",
+            "outDir": "dist",
+            "strict": true,
+            "esModuleInterop": true,
+            "skipLibCheck": true
+          },
+          "include": ["src/**/*"]
+        }
+      "Dockerfile": |
+        FROM node:22-alpine
+        WORKDIR /app
+        COPY package*.json ./
+        RUN npm ci --production
+        COPY dist/ ./dist/
+        USER node
+        CMD ["node", "dist/index.js"]
+      ".env.example": |
+        PORT=3000
+      ".gitignore": |
+        node_modules/
+        dist/
+        .env
+      "README.md": |
+        # {{PROJECT_NAME}}
+        {{PROJECT_DESCRIPTION}}
+
+        ## Getting started
+        ```bash
+        npm install
+        npm run dev
+        ```
+    post_init: |
+      npm install
+
+  landing:
+    name: "Landing Page"
+    description: "Static landing page with HTML/CSS/JS, ready for Vercel or Netlify"
+    lang: html
+    category: frontend
+    deploy: vercel
+    structure:
+      - index.html
+      - styles.css
+      - script.js
+      - assets/.gitkeep
+      - .gitignore
+      - README.md
+    files:
+      "index.html": |
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>{{PROJECT_NAME}}</title>
+          <link rel="stylesheet" href="styles.css">
+        </head>
+        <body>
+          <header>
+            <nav>
+              <h1>{{PROJECT_NAME}}</h1>
+            </nav>
+          </header>
+          <main>
+            <section class="hero">
+              <h2>{{PROJECT_DESCRIPTION}}</h2>
+              <a href="#" class="cta">Get Started</a>
+            </section>
+          </main>
+          <footer>
+            <p>&copy; 2026 {{PROJECT_NAME}}</p>
+          </footer>
+          <script src="script.js"></script>
+        </body>
+        </html>
+      "styles.css": |
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a1a; }
+        header { padding: 1rem 2rem; border-bottom: 1px solid #eee; }
+        nav h1 { font-size: 1.2rem; }
+        .hero { max-width: 800px; margin: 4rem auto; text-align: center; padding: 2rem; }
+        .hero h2 { font-size: 2.5rem; margin-bottom: 1.5rem; line-height: 1.2; }
+        .cta { display: inline-block; padding: 0.8rem 2rem; background: #000; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; }
+        .cta:hover { background: #333; }
+        footer { text-align: center; padding: 2rem; color: #888; margin-top: 4rem; }
+      "script.js": |
+        // {{PROJECT_NAME}} - ready to build
+        console.log('{{PROJECT_NAME}} loaded');
+      ".gitignore": |
+        .env
+        .DS_Store
+      "README.md": |
+        # {{PROJECT_NAME}}
+        {{PROJECT_DESCRIPTION}}
+
+        ## Deploy to Vercel
+        ```bash
+        npx vercel
+        ```

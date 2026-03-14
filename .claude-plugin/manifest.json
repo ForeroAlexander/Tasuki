@@ -1,0 +1,74 @@
+{
+  "name": "tasuki",
+  "version": "1.0.0",
+  "description": "Multi-agent orchestration framework for software development. 9 specialized agents, capability-based routing, TDD enforcement, knowledge graph memory, and interactive dashboard.",
+  "author": "forero",
+  "license": "MIT",
+  "homepage": "https://github.com/forero/tasuki",
+  "keywords": [
+    "multi-agent",
+    "orchestration",
+    "pipeline",
+    "tdd",
+    "code-review",
+    "security",
+    "devops",
+    "framework"
+  ],
+  "type": "framework",
+  "install": "bash install.sh",
+  "commands": {
+    "init": "Create new project from template",
+    "onboard": "Scan existing project and generate .tasuki/ config",
+    "status": "Show pipeline configuration",
+    "score": "Analyze task complexity",
+    "route": "Preview agent routing for a task",
+    "dashboard": "Generate interactive HTML dashboard",
+    "doctor": "Diagnose setup issues",
+    "health": "Project health score (0-100)"
+  },
+  "agents": [
+    "planner",
+    "qa",
+    "backend-dev",
+    "frontend-dev",
+    "db-architect",
+    "security",
+    "reviewer",
+    "devops",
+    "debugger"
+  ],
+  "skills": [
+    "tasuki-onboard",
+    "tasuki-mode",
+    "tasuki-status",
+    "tasuki-plans",
+    "memory-vault",
+    "context-compress",
+    "ui-design",
+    "ui-ux-pro-max",
+    "hotfix",
+    "test-endpoint",
+    "db-migrate",
+    "deploy-check"
+  ],
+  "stacks": [
+    "nextjs",
+    "sveltekit",
+    "nuxt",
+    "fastapi",
+    "django",
+    "flask",
+    "express",
+    "nestjs",
+    "rails",
+    "gin",
+    "spring-boot",
+    "laravel",
+    "landing"
+  ],
+  "requirements": {
+    "required": ["bash", "git", "curl", "awk"],
+    "optional": ["python3", "node", "npx", "jq"]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "tasuki",
+  "version": "1.0.13",
+  "description": "Multi-agent orchestration framework for AI-assisted development. 9 specialized agents, two-layer memory (wikilinks + RAG), TDD enforcement, knowledge graph, and interactive dashboard. Beta — actively improving.",
+  "author": "Alexander Forero",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "multi-agent",
+    "orchestration",
+    "ai-agents",
+    "tdd",
+    "code-review",
+    "devops",
+    "pipeline",
+    "cli"
+  ],
+  "bin": {
+    "tasuki": "./bin/tasuki"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "install.sh",
+    "uninstall.sh"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ForeroAlexander/Tasuki"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "scripts": {
+    "postinstall": "chmod +x bin/tasuki && find src/engine -name '*.sh' -exec chmod +x {} \\; && find src/detectors -name '*.sh' -exec chmod +x {} \\; && find src/templates/hooks -name '*.sh' -exec chmod +x {} \\;"
+  }
+}

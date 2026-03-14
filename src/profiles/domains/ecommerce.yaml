@@ -1,0 +1,37 @@
+# Domain Profile: E-Commerce
+# Applied when: industry is e-commerce, marketplace, retail
+# Triggered by: interview answer containing e-commerce, shop, store, marketplace, retail
+
+match:
+  industry: "e-commerce|ecommerce|shop|store|marketplace|retail"
+
+directives:
+  planner:
+    - "Consider inventory race conditions on every feature touching stock"
+    - "Payment flows: always design with failure recovery (retry, compensate)"
+    - "Cart/checkout: design for abandoned cart recovery"
+    - "Pricing: consider currency, tax, and discount stacking"
+
+  qa:
+    - "Concurrent purchase tests: two users buying last item"
+    - "Payment failure + recovery flow tests"
+    - "Cart expiration and stock reservation tests"
+    - "Price calculation tests with edge cases (zero, negative, overflow)"
+
+  backend-dev:
+    - "Stock operations: use SELECT FOR UPDATE or optimistic locking"
+    - "Payment: idempotency keys on all charge/refund operations"
+    - "Prices: store in cents (integer), never float"
+    - "Cart: use Redis for session, DB for persistence"
+
+  db-architect:
+    - "Inventory: use row-level locking for stock updates"
+    - "Orders: immutable once placed — use status transitions, not edits"
+    - "Prices: INTEGER (cents), not DECIMAL or FLOAT"
+    - "Index: product_id + status for order queries"
+
+  security:
+    - "Payment endpoints: verify amount hasn't been tampered client-side"
+    - "Coupon/discount: check for reuse and stacking exploits"
+    - "Price manipulation: server-side price validation always"
+    - "PCI compliance for payment card handling"

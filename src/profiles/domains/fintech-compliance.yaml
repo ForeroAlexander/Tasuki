@@ -1,0 +1,51 @@
+# Domain Profile: Fintech / Compliance
+# Applied when: industry is fintech, healthcare, insurance, banking
+# Triggered by: interview answer containing fintech, banking, compliance, HIPAA, PCI
+
+match:
+  industry: "fintech|banking|insurance|compliance|healthcare|hipaa|pci"
+
+directives:
+  planner:
+    - "Every feature MUST have a compliance section in the PRD"
+    - "PII handling: document which fields are sensitive and how they're protected"
+    - "Data retention: specify how long data is kept and when it's purged"
+    - "Audit trail: every state change must be logged with who/when/what"
+
+  qa:
+    - "Test PII masking in API responses"
+    - "Test audit log entries are created for all mutations"
+    - "Test encryption at rest for sensitive fields"
+    - "Test rate limiting on authentication endpoints"
+
+  backend-dev:
+    - "All sensitive fields: encrypt at rest (not just hash)"
+    - "Audit columns on every table: created_by, modified_by, modified_at"
+    - "Never log PII (emails, SSN, account numbers) — use masked versions"
+    - "All financial calculations: use Decimal, never float"
+    - "Idempotency keys on all payment/transaction endpoints"
+
+  db-architect:
+    - "Audit columns: created_at, created_by, modified_at, modified_by on ALL tables"
+    - "Soft delete only — never hard delete financial records"
+    - "Encryption: sensitive columns use pgcrypto or application-level encryption"
+    - "Retention policies: add expires_at where applicable"
+
+  security:
+    - "PCI-DSS compliance check on payment-related code"
+    - "Verify no PII in logs, error messages, or stack traces"
+    - "Check encryption at rest for sensitive data"
+    - "Verify audit trail completeness"
+    - "OWASP Top 10 PLUS: check for business logic vulnerabilities"
+
+  reviewer:
+    - "REJECT: any financial calculation using float"
+    - "REJECT: PII in log statements"
+    - "REJECT: missing audit columns on new tables"
+    - "Verify: idempotency on transaction endpoints"
+
+  devops:
+    - "Logs must be centralized and tamper-proof"
+    - "Database backups: encrypted, daily, tested monthly"
+    - "SSL/TLS everywhere — no HTTP endpoints"
+    - "Environment secrets: rotated quarterly minimum"

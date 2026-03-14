@@ -1,0 +1,76 @@
+# Tasuki Stack Profile: TypeScript + Express
+# Convention database used by the onboard agent to populate agent templates.
+
+stack:
+  backend:
+    lang: typescript
+    framework: express
+    version_cmd: "node --version"
+    run_cmd: "npm run dev"
+
+  conventions:
+    routing:
+      - "Use `Router()` per domain, mount in main app"
+      - "Every route uses typed request/response: `Request<Params, ResBody, ReqBody>`"
+      - "Auth via middleware: `authenticate` before route handlers"
+      - "Validation via `zod` or `joi` schemas in middleware"
+      - "Error handling: centralized error middleware, never catch-and-ignore"
+      - "Use `express.json()` middleware — never parse body manually"
+      - "Async handlers: wrap with `asyncHandler` or use express-async-errors"
+
+    models:
+      - "Use Prisma, TypeORM, or Drizzle for database access"
+      - "Define interfaces/types alongside models"
+      - "Timestamps: managed by ORM (createdAt, updatedAt)"
+      - "Soft delete: `deletedAt: Date | null`"
+      - "Use repository pattern to isolate DB queries from business logic"
+
+    migrations:
+      - "Use ORM migration tools (Prisma Migrate, TypeORM migrations)"
+      - "Migrations must be idempotent and reversible"
+      - "Test migrations against a copy of production schema"
+      - "Never auto-run migrations in production startup"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `vitest` or `jest` for unit tests"
+      - "Use `supertest` for HTTP endpoint testing"
+      - "Mock external services with `msw` or `nock`"
+      - "Test auth: 401 without token, 403 wrong role"
+      - "Test validation: malformed bodies return 400"
+
+    docker:
+      - "Use `node:22-alpine` base image"
+      - "Multi-stage build: install -> build -> run"
+      - "Use `npm ci --production` in final stage"
+      - "Run as non-root user: `USER node`"
+      - "Health checks: `curl -f http://localhost:3000/health`"
+
+  security_checks:
+    typescript:
+      - pattern: 'eval\s*\('
+        issue: "CODE INJECTION: eval() executes arbitrary code"
+        fix: "Use JSON.parse() or a safe parser"
+      - pattern: 'child_process.*\$\{'
+        issue: "COMMAND INJECTION: template literal in child_process"
+        fix: "Pass arguments as array, not interpolated string"
+      - pattern: '\.innerHTML\s*='
+        issue: "XSS: Direct innerHTML assignment"
+        fix: "Use textContent or sanitize with DOMPurify"
+      - pattern: 'cors\(\s*\)'
+        issue: "SECURITY: CORS with no options allows all origins"
+        fix: "Configure specific allowed origins"
+
+  tools:
+    linter: "eslint"
+    formatter: "prettier"
+    test_runner: "npx vitest"
+    migration_cmd: "npx prisma migrate dev"
+
+  mcp_suggestions:
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

@@ -1,0 +1,227 @@
+# Tasuki Agent Capability Registry
+# The onboard agent reads this to determine which agents to activate
+# and how to route tasks based on project detection results.
+
+agents:
+  planner:
+    role: "Software Architect"
+    domains:
+      - architecture
+      - planning
+      - requirements
+      - api-design
+      - data-modeling
+    triggers:
+      - "new feature"
+      - "refactor"
+      - "architecture decision"
+      - "complex task"
+    skip_when: "Simple bug fix, small tweak, single-file change"
+    depends_on: []
+    tools: [Read, Glob, Grep, Bash, Agent]
+    model: opus
+    permission_mode: plan
+    always_active: true
+
+  qa:
+    role: "QA Engineer"
+    domains:
+      - testing
+      - tdd
+      - ci
+      - coverage
+      - test-debugging
+    triggers:
+      - "new feature (before implementation)"
+      - "test failure"
+      - "coverage gap"
+    skip_when: "No testable changes, documentation-only"
+    depends_on: [planner]
+    tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
+    model: opus
+    always_active: true
+
+  db-architect:
+    role: "Database Architect"
+    domains:
+      - schema-design
+      - migrations
+      - query-optimization
+      - indexes
+      - data-modeling
+    triggers:
+      - "new tables"
+      - "schema change"
+      - "slow query"
+      - "migration needed"
+    skip_when: "No schema changes"
+    depends_on: [planner, qa]
+    tools: [Read, Write, Edit, Glob, Grep, Bash]
+    model: opus
+    stack_required: [database]
+    mcp_tools: [mcp__postgres__*]
+
+  backend-dev:
+    role: "Backend Developer"
+    domains:
+      - api
+      - business-logic
+      - integrations
+      - background-jobs
+      - auth
+    triggers:
+      - "new endpoint"
+      - "bug fix"
+      - "service implementation"
+      - "integration"
+    skip_when: "No backend changes"
+    depends_on: [qa, db-architect]
+    tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
+    model: opus
+    stack_required: [backend]
+
+  frontend-dev:
+    role: "Frontend Developer"
+    domains:
+      - ui
+      - components
+      - pages
+      - state-management
+      - styling
+      - accessibility
+    triggers:
+      - "new page"
+      - "UI component"
+      - "styling"
+      - "state management"
+    skip_when: "No frontend changes"
+    depends_on: [backend-dev]
+    tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
+    model: opus
+    stack_required: [frontend]
+    mcp_tools: [mcp__stitch__*, mcp__figma__*, mcp__playwright__*]
+
+  debugger:
+    role: "Debugger"
+    domains:
+      - debugging
+      - troubleshooting
+      - logs
+      - errors
+      - performance
+    triggers:
+      - "test failure"
+      - "runtime error"
+      - "unexpected behavior"
+    skip_when: "Everything passes"
+    depends_on: []
+    tools: [Read, Glob, Grep, Bash, Agent]
+    model: opus
+    activation: reactive
+    mcp_tools: [mcp__sentry__*, mcp__postgres__*]
+
+  security:
+    role: "Security Engineer"
+    domains:
+      - security-audit
+      - owasp
+      - vulnerability-scanning
+      - dependency-audit
+    triggers:
+      - "any code change (post-implementation)"
+    skip_when: "never"
+    depends_on: [backend-dev, frontend-dev]
+    tools: [Read, Glob, Grep, Bash, Agent]
+    model: opus
+    always_active: true
+
+  reviewer:
+    role: "Code Reviewer"
+    domains:
+      - code-review
+      - quality-gate
+      - conventions
+      - performance-review
+    triggers:
+      - "implementation complete"
+    skip_when: "never"
+    depends_on: [security]
+    tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
+    model: opus
+    always_active: true
+    mcp_tools: [mcp__github__*]
+
+  devops:
+    role: "DevOps Engineer"
+    domains:
+      - docker
+      - ci-cd
+      - deployment
+      - monitoring
+      - infrastructure
+    triggers:
+      - "infrastructure change"
+      - "deployment"
+      - "CI fix"
+    skip_when: "No infrastructure changes"
+    depends_on: [reviewer]
+    tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
+    model: opus
+    stack_required: [docker]
+    mcp_tools: [mcp__github__*, mcp__sentry__*]
+
+# Execution modes — controls agent behavior per mode
+# Model strategy: strong models for thinking (planner, reviewer, security), fast for execution (dev, devops)
+#
+# Model tiers:
+#   opus   = strong reasoning, expensive  → planning, review, security audit
+#   sonnet = fast execution, balanced     → implementation, testing, debugging
+#   haiku  = cheapest, fast               → memory reflection, summaries, simple lookups
+#
+modes:
+  fast:
+    description: "Quick fixes, bug patches, small tweaks"
+    skip_agents: [planner]
+    model_override:
+      default: sonnet
+      reviewer: opus
+    security: lightweight
+    reviewer_rounds: 1
+    context_strategy: minimal
+
+  standard:
+    description: "Medium features, new endpoints, new pages"
+    skip_agents: []
+    model_override:
+      default: sonnet
+      planner: opus
+      security: opus
+      reviewer: opus
+    security: full
+    reviewer_rounds: 2
+    context_strategy: compressed
+
+  serious:
+    description: "New modules, architecture changes, security-sensitive features"
+    skip_agents: []
+    model_override:
+      default: opus
+    security: full-with-tools
+    reviewer_rounds: 3
+    context_strategy: full
+
+# Model assignment by role (used when mode doesn't override)
+model_defaults:
+  # Thinking roles — need strong reasoning
+  planner: opus
+  security: opus
+  reviewer: opus
+  # Execution roles — need speed
+  backend-dev: sonnet
+  frontend-dev: sonnet
+  db-architect: sonnet
+  devops: sonnet
+  qa: sonnet
+  debugger: sonnet
+  # Reflection/memory — cheapest model
+  memory: haiku

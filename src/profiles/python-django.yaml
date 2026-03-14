@@ -1,0 +1,90 @@
+# Tasuki Stack Profile: Python + Django
+# Convention database used by the onboard agent to populate agent templates.
+
+stack:
+  backend:
+    lang: python
+    framework: django
+    version_cmd: "python3 --version"
+    run_cmd: "python3 manage.py runserver"
+
+  conventions:
+    routing:
+      - "Use class-based views (CBV) for CRUD, function views for simple endpoints"
+      - "URL patterns in `urls.py` per app, included in root `urls.py`"
+      - "Use `@login_required` or `LoginRequiredMixin` — never leave views unprotected"
+      - "Use `django.contrib.auth` permission system, not custom auth"
+      - "Return `JsonResponse` for APIs, or use DRF serializers"
+      - "Use `logger = logging.getLogger(__name__)` — never `print()`"
+      - "Imports order: stdlib -> django -> third-party -> local"
+
+    models:
+      - "Inherit from `models.Model`, use verbose `Meta` class"
+      - "Timestamps: `created_at = models.DateTimeField(auto_now_add=True)`"
+      - "Updated: `updated_at = models.DateTimeField(auto_now=True)`"
+      - "Soft delete: `deleted_at = models.DateTimeField(null=True, blank=True)`"
+      - "Foreign keys: `models.ForeignKey(Model, on_delete=models.CASCADE)`"
+      - "Use `related_name` on all ForeignKey/M2M fields"
+      - "Define `__str__` on every model"
+      - "Use `choices` for enum-like fields"
+
+    migrations:
+      - "Always use `python3 manage.py makemigrations` — never edit migrations by hand"
+      - "Review generated migrations before applying"
+      - "Use `RunSQL` for complex data migrations with reverse SQL"
+      - "Use `RunPython` with `reverse_code` for data transformations"
+      - "Never delete migration files — squash instead"
+      - "Test migrations on a copy of production data when possible"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `django.test.TestCase` for DB tests, `SimpleTestCase` for unit tests"
+      - "Use `factory_boy` or fixtures for test data"
+      - "Test views: status codes, redirects, context data, template used"
+      - "Test auth: 302 redirect for unauthenticated, 403 for wrong permissions"
+      - "Use `self.client` for request testing"
+      - "Mock external services — never hit real APIs"
+
+    docker:
+      - "Python images: `python:3.12-slim`"
+      - "Use `python3 manage.py` in CMD"
+      - "Run `collectstatic --noinput` in Dockerfile"
+      - "Always `pip install --no-cache-dir`"
+      - "Set `DJANGO_SETTINGS_MODULE` env var"
+      - "Health checks: `curl -f http://localhost:8000/health/`"
+
+  security_checks:
+    python:
+      - pattern: '\.raw\s*\(\s*f["\x27]'
+        issue: "SQL INJECTION: f-string inside .raw()"
+        fix: "Use parameterized queries with %s placeholders"
+      - pattern: '\.extra\s*\('
+        issue: "SQL INJECTION: QuerySet.extra() is dangerous"
+        fix: "Use annotate/aggregate or RawSQL with params"
+      - pattern: 'mark_safe\s*\('
+        issue: "XSS: mark_safe() bypasses template escaping"
+        fix: "Avoid mark_safe with user input, use template filters"
+      - pattern: 'DEBUG\s*=\s*True'
+        issue: "SECURITY: DEBUG=True in production"
+        fix: "Set DEBUG from environment variable"
+      - pattern: 'ALLOWED_HOSTS\s*=\s*\[\s*\]'
+        issue: "SECURITY: Empty ALLOWED_HOSTS"
+        fix: "Set ALLOWED_HOSTS to your domain(s)"
+
+  tools:
+    scanner: "bandit"
+    linter: "ruff"
+    formatter: "ruff format"
+    test_runner: "python3 manage.py test"
+    migration_cmd: "python3 manage.py migrate"
+
+  mcp_suggestions:
+    - name: postgres
+      package: "@bytebase/dbhub"
+      when: "database detected"
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

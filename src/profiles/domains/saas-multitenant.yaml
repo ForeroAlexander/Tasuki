@@ -1,0 +1,42 @@
+# Domain Profile: SaaS Multi-Tenant
+# Applied when: multi-tenant detected (RLS, tenant_id patterns)
+# Triggered by: interview answer "multi-tenant: yes" or database detector finding RLS
+
+match:
+  multi_tenant: true
+
+directives:
+  planner:
+    - "Every endpoint MUST document tenant isolation strategy"
+    - "New tables MUST include tenant_id or client_id column"
+    - "Cross-tenant queries require explicit super_admin role check"
+    - "Design review: verify no data leaks between tenants"
+
+  qa:
+    - "MANDATORY test: client A cannot see client B's data"
+    - "Test with multiple tenant contexts in every test suite"
+    - "Test super_admin access separately from tenant access"
+    - "QueryCounter: verify tenant filter is applied (no full table scans)"
+
+  backend-dev:
+    - "Every query MUST filter by tenant_id/client_id"
+    - "Never use global queries without explicit role check"
+    - "Use get_current_tenant() or equivalent helper, never raw ID"
+    - "Background jobs must set tenant context before executing"
+
+  db-architect:
+    - "All new tables: add client_id/tenant_id column with FK"
+    - "RLS policy on every table with tenant data"
+    - "Indexes must include tenant_id as first column for composite indexes"
+    - "Migrations must create RLS policy alongside table creation"
+
+  security:
+    - "CRITICAL: verify tenant isolation on every endpoint"
+    - "Check for IDOR vulnerabilities across tenant boundaries"
+    - "Verify background jobs don't leak tenant data"
+    - "Audit: no raw SQL without tenant filter"
+
+  reviewer:
+    - "REJECT any PR that modifies tenant data without tenant filter"
+    - "Verify RLS policies exist for new tables"
+    - "Check that tests include cross-tenant isolation tests"

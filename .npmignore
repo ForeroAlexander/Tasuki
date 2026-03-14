@@ -1,0 +1,11 @@
+# Don't publish these to npm
+.git/
+.github/
+tests/
+/tmp/
+*.log
+.claude/
+memory-vault/
+tasuki-plans/
+CONTEXT.md
+.cache/

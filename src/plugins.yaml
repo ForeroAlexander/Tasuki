@@ -1,0 +1,376 @@
+# Tasuki Plugin Catalog
+# Available plugins that can be installed into a project.
+# Categories: skill, agent, mcp
+
+skills:
+  db-migrate:
+    description: "Create new database migration with tool-specific command"
+    stack: [database]
+    builtin: true
+
+  deploy-check:
+    description: "Health check all services (containers, API, DB, frontend)"
+    stack: [docker]
+    builtin: true
+
+  hotfix:
+    description: "Create hotfix branch, minimal fix, run tests"
+    stack: [any]
+    builtin: true
+
+  test-endpoint:
+    description: "Test API endpoint with curl (success, auth, invalid data)"
+    stack: [backend]
+    builtin: true
+
+  tasuki-onboard:
+    description: "Re-scan codebase and regenerate .tasuki/ config"
+    stack: [any]
+    builtin: true
+
+  tasuki-mode:
+    description: "Switch execution mode (fast/standard/serious/auto)"
+    stack: [any]
+    builtin: true
+
+  tasuki-status:
+    description: "Show current pipeline configuration"
+    stack: [any]
+    builtin: true
+
+  gen-openapi:
+    description: "Generate OpenAPI spec from existing routes"
+    stack: [backend]
+    builtin: false
+    template: |
+      ---
+      name: gen-openapi
+      description: Generate OpenAPI 3.0 specification from existing API routes.
+      allowed-tools: Read, Glob, Grep, Write, Bash
+      ---
+      # Generate OpenAPI Spec
+
+      Scan all route/controller files and generate an OpenAPI 3.0 YAML specification.
+
+      ## Steps
+      1. Find all route files using Glob
+      2. Extract: method, path, request body, response schema, auth requirements
+      3. Generate `openapi.yaml` at project root
+      4. Validate the generated spec
+
+  seed-data:
+    description: "Generate realistic seed data for development/testing"
+    stack: [database]
+    builtin: false
+    template: |
+      ---
+      name: seed-data
+      description: Generate realistic seed data for all database tables.
+      allowed-tools: Read, Write, Glob, Grep, Bash
+      ---
+      # Seed Data Generator
+
+      Generate realistic development seed data based on existing models.
+
+      ## Steps
+      1. Read all model files to understand schema
+      2. Generate seed data respecting foreign keys and constraints
+      3. Write seed script in the project's language
+      4. Include: users, sample data for each table, relationships
+
+  perf-check:
+    description: "Profile API endpoints for N+1 queries and slow responses"
+    stack: [backend]
+    builtin: false
+    template: |
+      ---
+      name: perf-check
+      description: Performance analysis - detect N+1 queries, slow endpoints, missing indexes.
+      allowed-tools: Read, Glob, Grep, Bash
+      ---
+      # Performance Check
+
+      Analyze backend code for common performance issues.
+
+      ## Checks
+      1. N+1 queries: find loops that make DB calls
+      2. Missing indexes: compare query patterns against schema indexes
+      3. Eager loading: check ORM queries for lazy loading in list endpoints
+      4. Connection pool: verify pool configuration matches expected load
+      5. Caching: identify endpoints that could benefit from caching
+
+  env-check:
+    description: "Validate .env files across environments"
+    stack: [any]
+    builtin: false
+    template: |
+      ---
+      name: env-check
+      description: Validate environment variables across .env, .env.example, and code references.
+      allowed-tools: Read, Glob, Grep, Bash
+      ---
+      # Environment Variable Check
+
+      Find missing, unused, or inconsistent environment variables.
+
+      ## Steps
+      1. Read .env.example (or .env.template) for expected vars
+      2. Grep codebase for os.environ, process.env, os.Getenv references
+      3. Cross-reference: vars in code but not in example
+      4. Flag: vars with no default and no documentation
+
+agents:
+  mobile-dev:
+    description: "Mobile app developer (React Native, Flutter, Swift, Kotlin)"
+    stack: [mobile]
+    builtin: false
+    template: |
+      ---
+      name: mobile-dev
+      description: Mobile developer for {{PROJECT_NAME}}. Builds mobile apps with React Native, Flutter, or native iOS/Android.
+      tools: Read, Write, Edit, Glob, Grep, Bash, Agent
+      model: opus
+      memory: project
+      domains: [mobile, react-native, flutter, ios, android, app]
+      triggers: [mobile app, react native, flutter, ios, android, app screen, native]
+      priority: 5
+      activation: conditional
+      stack_required: mobile
+      ---
+      # Mobile Dev -- {{PROJECT_NAME}}
+
+      You are **MobileDev**, a senior mobile developer. You build cross-platform or native mobile apps.
+
+      ## Behavior
+      - Build complete, working screens and components
+      - Handle offline state, loading states, and error states
+      - Follow platform-specific guidelines (Material Design / HIG)
+      - Test on both platforms when cross-platform
+
+      ## Not Your Job
+      - Backend APIs (that's backend-dev)
+      - Web frontend (that's frontend-dev)
+      - Database schema (that's db-architect)
+
+  data-eng:
+    description: "Data engineer for pipelines, ETL, analytics"
+    stack: [data]
+    builtin: false
+    template: |
+      ---
+      name: data-eng
+      description: Data engineer for {{PROJECT_NAME}}. Builds data pipelines, ETL jobs, analytics queries, and data models.
+      tools: Read, Write, Edit, Glob, Grep, Bash
+      model: opus
+      memory: project
+      domains: [data, etl, pipelines, analytics, data-modeling, warehouse]
+      triggers: [data pipeline, etl, analytics, data model, warehouse, dbt, airflow, spark]
+      priority: 5
+      activation: conditional
+      stack_required: data
+      ---
+      # Data Engineer -- {{PROJECT_NAME}}
+
+      You are **DataEng**, a senior data engineer. You build reliable data pipelines and analytics.
+
+      ## Behavior
+      - Build idempotent, resumable pipelines
+      - Use partitioning and incremental loads where possible
+      - Document data lineage and transformations
+      - Write data quality checks
+
+      ## Stack
+      - Frameworks: dbt, Airflow, Dagster, Prefect, Spark
+      - Storage: BigQuery, Snowflake, Redshift, PostgreSQL
+      - Formats: Parquet, Avro, JSON
+
+  ml-eng:
+    description: "ML engineer for model training, inference, and deployment"
+    stack: [ml]
+    builtin: false
+    template: |
+      ---
+      name: ml-eng
+      description: ML engineer for {{PROJECT_NAME}}. Handles model training, evaluation, inference APIs, and ML ops.
+      tools: Read, Write, Edit, Glob, Grep, Bash
+      model: opus
+      memory: project
+      domains: [ml, machine-learning, training, inference, models, mlops]
+      triggers: [model training, inference, ml pipeline, machine learning, neural network, mlops]
+      priority: 5
+      activation: conditional
+      stack_required: ml
+      ---
+      # ML Engineer -- {{PROJECT_NAME}}
+
+      You are **MLEng**, a senior ML engineer.
+
+      ## Behavior
+      - Track experiments with proper versioning
+      - Separate training from inference code
+      - Document model architecture and hyperparameters
+      - Include evaluation metrics and benchmarks
+
+      ## Not Your Job
+      - Backend APIs for serving (that's backend-dev)
+      - Frontend dashboards (that's frontend-dev)
+
+mcp:
+  # === CORE (installed by default) ===
+  context7:
+    description: "Up-to-date documentation for 9000+ libraries and frameworks"
+    package: "@upstash/context7-mcp@latest"
+    transport: stdio
+    stack: [any]
+    builtin: true
+
+  github:
+    description: "GitHub integration (PRs, issues, actions, code search)"
+    url: "https://api.githubcopilot.com/mcp/"
+    transport: http
+    stack: [any]
+    builtin: true
+
+  sentry:
+    description: "Error tracking, monitoring, and incident alerting"
+    url: "https://mcp.sentry.dev/mcp"
+    transport: http
+    stack: [any]
+    builtin: true
+
+  semgrep:
+    description: "Static analysis and security pattern scanning"
+    package: "semgrep-mcp"
+    installer: "uvx"
+    transport: stdio
+    stack: [any]
+    builtin: true
+
+  taskmaster-ai:
+    description: "Task management and project orchestration for planner agent"
+    package: "task-master-ai@latest"
+    transport: stdio
+    stack: [any]
+    builtin: true
+
+  # === DATABASES ===
+  postgres:
+    description: "PostgreSQL database access with schema inspection and queries"
+    package: "@bytebase/dbhub"
+    transport: stdio
+    stack: [database]
+    builtin: true
+
+  sqlite:
+    description: "SQLite database operations and analysis"
+    package: "@modelcontextprotocol/server-sqlite"
+    transport: stdio
+    stack: [database]
+
+  mongodb:
+    description: "MongoDB database management and querying"
+    package: "mongodb-lens"
+    transport: stdio
+    stack: [database]
+
+  duckdb:
+    description: "DuckDB analytics database for OLAP queries"
+    package: "mcp-server-duckdb"
+    installer: "pip"
+    transport: stdio
+    stack: [data]
+
+  elasticsearch:
+    description: "Elasticsearch full-text search and analytics"
+    package: "elasticsearch-mcp-server"
+    installer: "pip"
+    transport: stdio
+    stack: [database]
+
+  bigquery:
+    description: "Google BigQuery data warehouse access"
+    package: "mcp-server-bigquery"
+    installer: "pip"
+    transport: stdio
+    stack: [data]
+
+  chromadb:
+    description: "ChromaDB vector database for RAG and embeddings"
+    package: "chroma-mcp"
+    installer: "pip"
+    transport: stdio
+    stack: [ml, data]
+
+  # === FRONTEND / DESIGN ===
+  playwright:
+    description: "Browser automation for E2E testing and screenshots"
+    package: "@anthropic-ai/mcp-server-playwright@latest"
+    transport: stdio
+    stack: [frontend]
+    builtin: true
+
+  figma:
+    description: "Design specs, colors, typography from Figma files"
+    url: "https://mcp.figma.com/mcp"
+    transport: http
+    stack: [frontend]
+    builtin: true
+
+  stitch:
+    description: "Google Stitch — preview UI designs before coding"
+    package: "stitch-mcp"
+    transport: stdio
+    stack: [frontend]
+    builtin: true
+
+  puppeteer:
+    description: "Browser automation and web scraping with Puppeteer"
+    package: "@modelcontextprotocol/server-puppeteer"
+    transport: stdio
+    stack: [frontend]
+
+  mermaid:
+    description: "Generate 22+ diagram types for architecture documentation"
+    package: "mermaid-mcp"
+    transport: stdio
+    stack: [any]
+
+  # === INFRASTRUCTURE ===
+  filesystem:
+    description: "Sandboxed file system operations with access controls"
+    package: "@modelcontextprotocol/server-filesystem"
+    transport: stdio
+    stack: [any]
+
+  kubernetes:
+    description: "Kubernetes cluster operations and resource management"
+    package: "k8s-mcp-server"
+    installer: "pip"
+    transport: stdio
+    stack: [docker]
+
+  cloudflare:
+    description: "Cloudflare Workers, KV storage, R2, D1 database"
+    package: "@cloudflare/mcp-server-cloudflare"
+    transport: stdio
+    stack: [docker]
+
+  # === TESTING / API ===
+  postman:
+    description: "Postman API testing — connect AI to your API collections"
+    url: "https://mcp.postman.com/mcp"
+    transport: http
+    stack: [backend]
+
+  # === SEARCH / RESEARCH ===
+  brave-search:
+    description: "Brave web search API for research and documentation lookup"
+    package: "brave-search-mcp-server"
+    transport: stdio
+    stack: [any]
+
+  docfork:
+    description: "Up-to-date documentation for 9000+ libraries (alternative to context7)"
+    package: "docfork-mcp"
+    transport: stdio
+    stack: [any]

@@ -1,0 +1,274 @@
+#!/bin/bash
+# Tasuki — Multi-agent orchestration framework for software development
+# CLI entry point
+
+set -euo pipefail
+
+TASUKI_VERSION="1.0.1"
+# Resolve symlinks (npm global install creates symlinks)
+TASUKI_BIN="$0"
+if [ -L "$TASUKI_BIN" ]; then
+  TASUKI_BIN="$(readlink -f "$TASUKI_BIN" 2>/dev/null || realpath "$TASUKI_BIN" 2>/dev/null || echo "$TASUKI_BIN")"
+fi
+TASUKI_ROOT="$(cd "$(dirname "$TASUKI_BIN")/.." && pwd)"
+ENGINE_DIR="$TASUKI_ROOT/src/engine"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+show_help() {
+  echo ""
+  echo -e "${BOLD}tasuki${NC} v${TASUKI_VERSION} — Multi-agent orchestration for software development"
+  echo ""
+  echo -e "${BOLD}Create:${NC}"
+  echo -e "  tasuki ${CYAN}init${NC}      <stack> <name> [path]  Scaffold new project + auto-onboard"
+  echo -e "  tasuki ${CYAN}init${NC}      --list                 Show available templates"
+  echo ""
+  echo -e "${BOLD}Setup:${NC}"
+  echo -e "  tasuki ${CYAN}onboard${NC}   [path] [--target X]   Scan project, generate config"
+  echo -e "  tasuki ${CYAN}adapt${NC}     <target|--list> [path] Generate for another AI tool"
+  echo -e "  tasuki ${CYAN}status${NC}    [path]                Show pipeline configuration"
+  echo -e "  tasuki ${CYAN}validate${NC}  [path]                Verify .tasuki/ configuration"
+  echo -e "  tasuki ${CYAN}doctor${NC}    [path] [--fix]        Diagnose + auto-repair issues"
+  echo -e "  tasuki ${CYAN}monorepo${NC}  [path]                Detect multiple services"
+  echo ""
+  echo -e "${BOLD}Execution:${NC}"
+  echo -e "  tasuki ${CYAN}mode${NC}      <mode> [path]         Switch: fast, standard, serious, auto"
+  echo -e "  tasuki ${CYAN}score${NC}     \"desc\" [path]         Analyze task complexity (1-10)"
+  echo -e "  tasuki ${CYAN}route${NC}     \"desc\" [mode] [path]  Show which agents run"
+  echo -e "  tasuki ${CYAN}cost${NC}      \"desc\" [mode] [path]  Estimate tokens and cost"
+  echo ""
+  echo -e "${BOLD}Plugins:${NC}"
+  echo -e "  tasuki ${CYAN}install${NC}   <type> <name>         Install plugin (skill, agent, mcp)"
+  echo -e "  tasuki ${CYAN}uninstall${NC} <type> <name>         Remove a plugin"
+  echo -e "  tasuki ${CYAN}plugins${NC}   [type]                List available plugins"
+  echo -e "  tasuki ${CYAN}update-catalog${NC}                  Check npm for new MCPs"
+  echo ""
+  echo -e "${BOLD}Quality:${NC}"
+  echo -e "  tasuki ${CYAN}health${NC}    [path]                Project health score (0-100)"
+  echo -e "  tasuki ${CYAN}changelog${NC} [path]                Generate changelog from plans + git"
+  echo -e "  tasuki ${CYAN}dashboard${NC} [path]                Interactive HTML dashboard"
+  echo ""
+  echo -e "${BOLD}Memory:${NC}"
+  echo -e "  tasuki ${CYAN}vault${NC}     <stats|search|sync|query> Knowledge graph + RAG deep memory"
+  echo -e "  tasuki ${CYAN}facts${NC}     [path]                Regenerate verified project facts"
+  echo -e "  tasuki ${CYAN}error${NC}     \"desc\" --agent X      Record a mistake to prevent repetition"
+  echo -e "  tasuki ${CYAN}errors${NC}    [list|clear]          View/clear recorded errors"
+  echo -e "  tasuki ${CYAN}discover${NC}  [path]                Show agent capability map"
+  echo ""
+  echo -e "${BOLD}Team:${NC}"
+  echo -e "  tasuki ${CYAN}export${NC}    [path]                Export config + vault"
+  echo -e "  tasuki ${CYAN}import${NC}    <path|tar.gz>         Import agents, skills, rules, memory from another framework"
+  echo -e "  tasuki ${CYAN}snapshot${NC}  <name>                Save project as reusable template"
+  echo -e "  tasuki ${CYAN}notify${NC}    <setup|test>          Webhook notifications (Slack/Discord)"
+  echo -e "  tasuki ${CYAN}progress${NC}                        Show pipeline progress"
+  echo ""
+  echo -e "${BOLD}Maintenance:${NC}"
+  echo -e "  tasuki ${CYAN}cleanup${NC}   [path] [--all]        Remove unused components"
+  echo -e "  tasuki ${CYAN}restore${NC}   [path] [--all]        Bring back removed components"
+  echo -e "  tasuki ${CYAN}hooks${NC}     <install|uninstall>   Manage git hooks"
+  echo ""
+  echo -e "${BOLD}Other:${NC}  help, version"
+  echo ""
+}
+
+show_version() {
+  echo "tasuki v${TASUKI_VERSION}"
+}
+
+# No arguments = smart default: onboard if needed, status if already onboarded
+if [ $# -eq 0 ]; then
+  if [ -d ".tasuki" ]; then
+    bash "$ENGINE_DIR/status.sh" "."
+  else
+    echo -e "${BOLD}Tasuki${NC} v${TASUKI_VERSION}"
+    echo ""
+    echo -e "No .tasuki/ found. ${CYAN}Onboarding this project...${NC}"
+    echo ""
+    # Auto-detect target
+    source "$ENGINE_DIR/detect-ai.sh"
+    target=$(get_default_target)
+    bash "$ENGINE_DIR/onboard.sh" "." "false"
+    bash "$ENGINE_DIR/adapt.sh" "$target" "."
+  fi
+  exit 0
+fi
+
+# Main dispatch
+case "${1:-help}" in
+  init)
+    shift
+    if [ "${1:-}" = "--list" ] || [ "${1:-}" = "-l" ] || [ "${1:-}" = "list" ]; then
+      bash "$ENGINE_DIR/init.sh" --list
+    else
+      bash "$ENGINE_DIR/init.sh" "${1:-}" "${2:-}" "${3:-.}" "${4:-}"
+    fi
+    ;;
+  onboard)
+    shift
+    dry_run="false"; target="auto"; path="."
+    for arg in "$@"; do
+      case "$arg" in
+        --dry-run) dry_run="true" ;;
+        --target=*) target="${arg#--target=}" ;;
+        claude|cursor|codex|copilot|continue|windsurf|roocode|gemini|all) target="$arg" ;;
+        *) path="$arg" ;;
+      esac
+    done
+    # Auto-detect target if not specified
+    if [ "$target" = "auto" ]; then
+      source "$ENGINE_DIR/detect-ai.sh"
+      target=$(get_default_target)
+    fi
+    # Onboard always runs (detection, vault, facts, discover)
+    bash "$ENGINE_DIR/onboard.sh" "$path" "$dry_run"
+    if [ "$dry_run" != "true" ]; then
+      bash "$ENGINE_DIR/adapt.sh" "$target" "$path"
+    fi
+    ;;
+  adapt)
+    shift || true
+    if [ "${1:-}" = "--list" ] || [ "${1:-}" = "list" ]; then
+      bash "$ENGINE_DIR/adapt.sh" --list
+    else
+      bash "$ENGINE_DIR/adapt.sh" "${1:-}" "${2:-.}"
+    fi
+    ;;
+  status)    shift || true; bash "$ENGINE_DIR/status.sh" "${1:-.}" ;;
+  validate)  shift || true; bash "$ENGINE_DIR/validate.sh" "${1:-.}" ;;
+  doctor)
+    shift || true
+    fix="false"; dpath="."
+    for arg in "$@"; do case "$arg" in --fix) fix="true" ;; *) dpath="$arg" ;; esac; done
+    bash "$ENGINE_DIR/doctor.sh" "$dpath" "$fix"
+    ;;
+  monorepo)  shift || true; bash "$ENGINE_DIR/monorepo.sh" "${1:-.}" ;;
+  mode)
+    shift; bash "$ENGINE_DIR/mode.sh" "${1:-}" "${2:-.}"
+    ;;
+  score)
+    shift
+    [ -z "${1:-}" ] && { echo -e "${RED}Usage: tasuki score \"task\" [path]${NC}" >&2; exit 1; }
+    bash "$ENGINE_DIR/score.sh" "$1" "${2:-.}"
+    ;;
+  route)
+    shift
+    [ -z "${1:-}" ] && { echo -e "${RED}Usage: tasuki route \"task\" [mode] [path]${NC}" >&2; exit 1; }
+    bash "$ENGINE_DIR/routing.sh" "$1" "${2:-standard}" "${3:-.}"
+    ;;
+  cost)
+    shift
+    [ -z "${1:-}" ] && { echo -e "${RED}Usage: tasuki cost \"task\" [mode] [path]${NC}" >&2; exit 1; }
+    bash "$ENGINE_DIR/cost.sh" "$1" "${2:-standard}" "${3:-.}"
+    ;;
+  install)
+    shift; bash "$ENGINE_DIR/plugins.sh" install "${1:-}" "${2:-}" "${3:-.}"
+    ;;
+  uninstall)
+    shift; bash "$ENGINE_DIR/plugins.sh" uninstall "${1:-}" "${2:-}" "${3:-.}"
+    ;;
+  plugins|plugin)
+    shift || true; bash "$ENGINE_DIR/plugins.sh" list "${1:-all}"
+    ;;
+  update-catalog|update)
+    bash "$ENGINE_DIR/catalog-update.sh"
+    ;;
+  health)     shift || true; bash "$ENGINE_DIR/health.sh" "${1:-.}" ;;
+  changelog)  shift || true; bash "$ENGINE_DIR/changelog.sh" "${1:-.}" "${2:-}" ;;
+  dashboard)
+    shift || true
+    if [ "${1:-}" = "--generate" ]; then
+      shift || true
+      TASUKI_GENERATE_ONLY=1 bash "$ENGINE_DIR/dashboard.sh" "${1:-.}"
+    else
+      bash "$ENGINE_DIR/dashboard.sh" "${1:-.}"
+    fi
+    ;;
+  vault)
+    shift; action="${1:-stats}"; shift || true
+    case "$action" in
+      init)   bash "$ENGINE_DIR/vault.sh" init "${1:-.}" ;;
+      search) bash "$ENGINE_DIR/vault.sh" search "${2:-.}" "$1" ;;
+      stats)  bash "$ENGINE_DIR/vault.sh" stats "${1:-.}" ;;
+      add)    bash "$ENGINE_DIR/vault.sh" add "$@" ;;
+      sync)   bash "$ENGINE_DIR/vault.sh" sync "${1:-.}" ;;
+      query)  bash "$ENGINE_DIR/vault.sh" query "${2:-.}" "$1" ;;
+      expand) bash "$ENGINE_DIR/vault.sh" expand "$@" ;;
+      confidence) bash "$ENGINE_DIR/vault.sh" confidence "$@" ;;
+      decay)  bash "$ENGINE_DIR/vault.sh" decay "${1:-.}" ;;
+      push)   bash "$ENGINE_DIR/vault.sh" push "${1:-.}" ;;
+      pull)   bash "$ENGINE_DIR/vault.sh" pull "${1:-.}" ;;
+      *) echo "Usage: tasuki vault <init|search|stats|add|sync|query|expand|confidence|decay|push|pull>" ;;
+    esac
+    ;;
+  facts)   shift || true; bash "$ENGINE_DIR/facts.sh" "${1:-.}" ;;
+  error)   shift; bash "$ENGINE_DIR/errors.sh" add "$@" ;;
+  errors)  shift || true; bash "$ENGINE_DIR/errors.sh" "${1:-list}" "${2:-.}" ;;
+  discover)
+    shift || true
+    if [ "${1:-}" = "--test" ]; then
+      shift; bash "$ENGINE_DIR/discover.sh" "${2:-.}" --test "${1:-}"
+    else
+      bash "$ENGINE_DIR/discover.sh" "${1:-.}"
+    fi
+    ;;
+  export)  shift || true; bash "$ENGINE_DIR/share.sh" export "${1:-.}" ;;
+  import)
+    shift
+    [ -z "${1:-}" ] && { echo -e "${RED}Usage: tasuki import <file.tar.gz|agents> <source> [path]${NC}" >&2; exit 1; }
+    if [ "$1" = "agents" ] || [ -d "$1" ]; then
+      # Import agents/skills/rules/hooks/memory from another framework
+      local source_dir="$1"
+      [ "$1" = "agents" ] && { shift; source_dir="${1:-.}"; }
+      bash "$ENGINE_DIR/import-agents.sh" "$source_dir" "${2:-.}"
+    else
+      bash "$ENGINE_DIR/share.sh" import "$1" "${2:-.}"
+    fi
+    ;;
+  preview) shift; bash "$ENGINE_DIR/share.sh" preview "${1:-}" ;;
+  snapshot)
+    shift || true
+    if [ "${1:-}" = "--list" ] || [ "${1:-}" = "list" ]; then
+      bash "$ENGINE_DIR/snapshot.sh" list
+    else
+      bash "$ENGINE_DIR/snapshot.sh" "${1:-}" "${2:-.}"
+    fi
+    ;;
+  notify)
+    shift || true
+    bash "$ENGINE_DIR/notify.sh" "${1:-}" "${2:-.}" "${3:-}"
+    ;;
+  progress)
+    shift || true; bash "$ENGINE_DIR/progress.sh" "$@"
+    ;;
+  activity)
+    shift || true; bash "$ENGINE_DIR/activity-log.sh" "${1:-show}" "${2:-.}"
+    ;;
+  cleanup)
+    shift || true
+    all=""; path="."
+    for arg in "$@"; do case "$arg" in --all) all="--all" ;; *) path="$arg" ;; esac; done
+    bash "$ENGINE_DIR/cleanup.sh" "$path" "$all"
+    ;;
+  restore)
+    shift || true
+    all=""; path="."
+    for arg in "$@"; do case "$arg" in --all) all="--all" ;; *) path="$arg" ;; esac; done
+    bash "$ENGINE_DIR/restore.sh" "$path" "$all"
+    ;;
+  hooks)   shift || true; bash "$ENGINE_DIR/git-hooks.sh" "${1:-status}" "${2:-.}" ;;
+  ai)
+    bash "$ENGINE_DIR/detect-ai.sh"
+    ;;
+  help|--help|-h) show_help ;;
+  version|--version|-v) show_version ;;
+  *)
+    echo -e "${RED}Unknown command: $1${NC}" >&2
+    echo "Run 'tasuki help' for usage." >&2
+    exit 1
+    ;;
+esac

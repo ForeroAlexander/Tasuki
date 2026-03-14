@@ -1,0 +1,44 @@
+# Domain Profile: Logistics / Fleet Management
+# Applied when: industry is logistics, fleet, transportation, trucking
+# Triggered by: interview answer containing logistics, fleet, transport, trucking, FMCSA, ELD, HOS
+
+match:
+  industry: "logistics|fleet|transport|trucking|fmcsa|eld|hos|shipping|freight"
+
+directives:
+  planner:
+    - "Consider FMCSA/DOT compliance on every driver-related feature"
+    - "ELD integration: check if existing provider adapters cover the need"
+    - "Real-time data: design for eventual consistency (ELD data arrives async)"
+    - "Multi-timezone: driver location vs company timezone vs UTC storage"
+
+  qa:
+    - "HOS calculations: test all cycle types (60/7, 70/8)"
+    - "Timezone edge cases: driver crosses timezone during shift"
+    - "ELD data gaps: test behavior when provider data is missing or delayed"
+    - "Multi-tenant: fleet A cannot see fleet B's drivers"
+
+  backend-dev:
+    - "All timestamps: store in UTC, convert to local only in API response"
+    - "ELD sync: use existing base integration class, don't create from scratch"
+    - "HOS calculations: never approximate — use exact FMCSA rules"
+    - "Background sync jobs: use Celery with retry and dead-letter queue"
+    - "Webhook receivers: verify signature, handle duplicate delivery"
+
+  db-architect:
+    - "Time-series data: partition by date for HOS/location tables"
+    - "Driver status: use enum with state machine transitions, not free text"
+    - "ELD data: store raw API response as JSONB alongside parsed fields"
+    - "Indexes: (client_id, driver_id, date) for HOS queries"
+
+  security:
+    - "PII: driver SSN, license number, medical certificate — encrypt at rest"
+    - "Multi-tenant: verify fleet isolation on every endpoint"
+    - "Webhook endpoints: require signature verification"
+    - "Export endpoints: check for PII in CSV/PDF downloads"
+
+  frontend-dev:
+    - "Maps: handle offline/degraded mode gracefully"
+    - "Real-time updates: use SSE or polling, not WebSocket (simpler infra)"
+    - "Tables: expect 1000+ drivers — virtual scroll or pagination required"
+    - "Timezone display: always show driver's local time, not UTC"

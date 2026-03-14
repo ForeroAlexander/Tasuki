@@ -1,0 +1,89 @@
+# Tasuki Stack Profile: Python + FastAPI
+# Convention database used by the onboard agent to populate agent templates.
+
+stack:
+  backend:
+    lang: python
+    framework: fastapi
+    version_cmd: "python3 --version"
+    run_cmd: "python3"
+
+  conventions:
+    routing:
+      - "All route handlers use `async def`"
+      - "Every endpoint requires auth: `Depends(get_current_user)` or `Depends(require_role(...))`"
+      - "Responses are Pydantic models, never raw dicts"
+      - "Use `logger = logging.getLogger(__name__)` — never `print()`"
+      - "Error handling: `HTTPException` with descriptive detail"
+      - "Imports order: stdlib -> third-party -> local"
+
+    models:
+      - "Use SQLAlchemy 2.0 `DeclarativeBase` style"
+      - "Timestamps: `created_at = Column(DateTime(timezone=True), server_default=func.now())`"
+      - "Updated: `updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())`"
+      - "Soft delete: `deleted_at = Column(DateTime(timezone=True), nullable=True)`"
+      - "JSONB: `Column(JSONB, server_default='[]')` or `server_default='{}'`"
+      - "Foreign keys: `Column(Integer, ForeignKey('table.id', ondelete='CASCADE'))`"
+      - "Relationships: use `relationship()` with `back_populates`, specify `lazy` strategy"
+
+    migrations:
+      - "ALWAYS use raw SQL: `op.execute('ALTER TABLE ...')`"
+      - "NEVER use `op.add_column()`, `op.create_table()`, `op.drop_column()`"
+      - "All datetime columns: `TIMESTAMPTZ` (never `TIMESTAMP`)"
+      - "Use `IF NOT EXISTS` / `IF EXISTS` for idempotency"
+      - "Indexes: `CREATE INDEX CONCURRENTLY IF NOT EXISTS`"
+      - "Include `downgrade()` that reverses the `upgrade()`"
+      - "Foreign keys: explicit `ON DELETE CASCADE` or `ON DELETE SET NULL`"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Backend tests + code FIRST, then frontend (never in parallel)"
+      - "Critical smoke tests: `@pytest.mark.critical`"
+      - "Integration tests: `@pytest.mark.integration`"
+      - "Mock external services — never hit real APIs"
+      - "Test auth: 401 without token, 403 wrong role"
+      - "Test pagination: page size, total count, empty results"
+
+    docker:
+      - "Python images: `python:3.11-slim`"
+      - "Use `python3` in CMD, never `python`"
+      - "Always `pip install --no-cache-dir`"
+      - "Always include `restart: unless-stopped`"
+      - "Always include `depends_on` for DB and Redis"
+      - "Health checks: `test: ['CMD', 'curl', '-f', 'http://localhost:{port}/health']`"
+
+  security_checks:
+    python:
+      - pattern: '\.execute\s*\(\s*f["\x27]'
+        issue: "SQL INJECTION: f-string inside .execute()"
+        fix: "Use parameterized queries"
+      - pattern: 'text\s*\(\s*f["\x27]'
+        issue: "SQL INJECTION: f-string inside text()"
+        fix: "Use parameterized queries"
+      - pattern: 'pickle\.loads?\s*\('
+        issue: "DESERIALIZATION: pickle.loads() is unsafe"
+        fix: "Use JSON"
+      - pattern: 'os\.system\s*\('
+        issue: "SHELL INJECTION: os.system() is unsafe"
+        fix: "Use subprocess.run() with a list"
+      - pattern: 'subprocess\.\w+\s*\(.*shell\s*=\s*True'
+        issue: "SHELL INJECTION: subprocess with shell=True"
+        fix: "Pass arguments as a list"
+
+  tools:
+    scanner: "bandit"
+    linter: "ruff"
+    formatter: "ruff format"
+    test_runner: "python3 -m pytest"
+    migration_cmd: "alembic"
+
+  mcp_suggestions:
+    - name: postgres
+      package: "@bytebase/dbhub"
+      when: "database detected"
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

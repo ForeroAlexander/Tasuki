@@ -1,0 +1,88 @@
+# Tasuki — Model Mapping per AI Platform
+# Each platform has different model names for the same tiers:
+#   thinking = strongest reasoning (planning, review, security)
+#   execution = fast implementation (coding, testing, debugging)
+#   reflection = cheapest (memory, summaries)
+
+platforms:
+  claude:
+    thinking: opus
+    execution: sonnet
+    reflection: haiku
+    models:
+      - claude-opus-4-6
+      - claude-sonnet-4-6
+      - claude-haiku-4-5
+
+  codex:
+    thinking: o3
+    execution: o4-mini
+    reflection: o4-mini
+    models:
+      - o3
+      - o4-mini
+      - gpt-4.1
+
+  gemini:
+    thinking: gemini-2.5-pro
+    execution: gemini-2.5-flash
+    reflection: gemini-2.5-flash
+    models:
+      - gemini-2.5-pro
+      - gemini-2.5-flash
+
+  cursor:
+    thinking: claude-sonnet-4
+    execution: claude-sonnet-4
+    reflection: cursor-small
+    models:
+      - claude-sonnet-4
+      - gpt-4.1
+      - cursor-small
+
+  copilot:
+    thinking: gpt-4.1
+    execution: gpt-4.1-mini
+    reflection: gpt-4.1-mini
+    models:
+      - gpt-4.1
+      - gpt-4.1-mini
+      - claude-sonnet-4
+
+  windsurf:
+    thinking: claude-sonnet-4
+    execution: claude-sonnet-4
+    reflection: claude-sonnet-4
+    models:
+      - claude-sonnet-4
+      - gpt-4.1
+
+  continue:
+    thinking: claude-sonnet-4
+    execution: claude-sonnet-4
+    reflection: claude-haiku-4
+    models:
+      - claude-sonnet-4
+      - gpt-4.1
+      - claude-haiku-4
+
+  roocode:
+    thinking: claude-sonnet-4
+    execution: claude-sonnet-4
+    reflection: claude-haiku-4
+    models:
+      - claude-sonnet-4
+      - gpt-4.1
+      - claude-haiku-4
+
+# Agent role → tier mapping
+roles:
+  planner: thinking
+  security: thinking
+  reviewer: thinking
+  backend-dev: execution
+  frontend-dev: execution
+  db-architect: execution
+  qa: execution
+  devops: execution
+  debugger: execution

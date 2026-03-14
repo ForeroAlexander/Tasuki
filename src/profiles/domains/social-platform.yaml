@@ -1,0 +1,31 @@
+# Domain Profile: Social Platform / Content
+# Applied when: industry is social, community, content, media
+# Triggered by: interview answer containing social, community, content, media, forum, chat
+
+match:
+  industry: "social|community|content|media|forum|chat|messaging|blog"
+
+directives:
+  planner:
+    - "Content moderation: plan for user-generated content review"
+    - "Notifications: design push/email/in-app notification strategy"
+    - "Feed algorithm: consider chronological vs ranked"
+    - "Privacy: user blocking, content reporting, data deletion requests"
+
+  qa:
+    - "Test content with XSS payloads in every text field"
+    - "Test rate limiting on post/comment/message creation"
+    - "Test blocking: blocked user cannot see blocker's content"
+    - "Test media upload: size limits, type validation, virus scan"
+
+  backend-dev:
+    - "User-generated content: sanitize ALL input (stored XSS is critical)"
+    - "Media: never serve user uploads from same domain — use CDN/S3"
+    - "Feeds: cache aggressively, invalidate on write"
+    - "Notifications: async via queue, never inline with request"
+
+  security:
+    - "Stored XSS: highest priority — check every text rendering"
+    - "CSRF: verify tokens on all state-changing operations"
+    - "File upload: type validation, size limits, no executable uploads"
+    - "Rate limiting: prevent spam, harassment, enumeration"

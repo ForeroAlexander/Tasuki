@@ -1,0 +1,88 @@
+# Tasuki Stack Profile: Ruby + Rails
+# Convention database used by the onboard agent to populate agent templates.
+
+stack:
+  backend:
+    lang: ruby
+    framework: rails
+    version_cmd: "ruby --version"
+    run_cmd: "bundle exec rails server"
+
+  conventions:
+    routing:
+      - "RESTful routes: `resources :users` in `config/routes.rb`"
+      - "Use `before_action :authenticate_user!` for auth (Devise or custom)"
+      - "Namespace API routes: `namespace :api do ... end`"
+      - "Use strong parameters: `params.require(:user).permit(:name, :email)`"
+      - "Respond with `render json:` for API endpoints"
+      - "Use `rescue_from` for centralized error handling"
+      - "Keep controllers thin — business logic goes in models or services"
+
+    models:
+      - "Inherit from `ApplicationRecord`"
+      - "Timestamps: `t.timestamps` in migrations (auto creates created_at/updated_at)"
+      - "Validations: `validates :name, presence: true` in model"
+      - "Associations: `belongs_to`, `has_many`, `has_one` with `dependent: :destroy`"
+      - "Scopes: `scope :active, -> { where(deleted_at: nil) }`"
+      - "Use `enum` for status fields"
+      - "Callbacks: prefer `after_commit` over `after_save` for side effects"
+
+    migrations:
+      - "Generate with `rails generate migration AddFieldToTable`"
+      - "Use `change` method (reversible by default)"
+      - "Use `safety_assured` block for irreversible operations (strong_migrations gem)"
+      - "Add indexes: `add_index :table, :column, algorithm: :concurrently`"
+      - "Never modify a migration that has been run in production"
+      - "Use `reversible` block when `change` can't auto-reverse"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `rspec` with `factory_bot` for test data"
+      - "Request specs for API testing: `get '/api/users', headers: auth_headers`"
+      - "Model specs for validations and scopes"
+      - "Use `shoulda-matchers` for common validation tests"
+      - "Mock external services with `webmock` or `vcr`"
+      - "Test auth: 401 without token, 403 wrong role"
+
+    docker:
+      - "Use `ruby:3.3-slim` base image"
+      - "Install `build-essential libpq-dev` for native gems"
+      - "Use `bundle install --without development test` in production"
+      - "Precompile assets: `rails assets:precompile`"
+      - "Run as non-root user"
+      - "Health checks: `curl -f http://localhost:3000/health`"
+
+  security_checks:
+    ruby:
+      - pattern: '\.html_safe'
+        issue: "XSS: .html_safe bypasses Rails escaping"
+        fix: "Use `sanitize()` helper or avoid raw HTML"
+      - pattern: 'system\s*\('
+        issue: "COMMAND INJECTION: system() executes shell commands"
+        fix: "Use Open3.capture3 with array arguments"
+      - pattern: 'eval\s*\('
+        issue: "CODE INJECTION: eval() executes arbitrary Ruby"
+        fix: "Avoid eval with user input"
+      - pattern: 'find_by_sql.*#\{'
+        issue: "SQL INJECTION: string interpolation in find_by_sql"
+        fix: "Use parameterized queries with ? placeholders"
+      - pattern: 'where\s*\(".*#\{'
+        issue: "SQL INJECTION: string interpolation in where clause"
+        fix: "Use where('field = ?', value) syntax"
+
+  tools:
+    linter: "rubocop"
+    formatter: "rubocop -A"
+    test_runner: "bundle exec rspec"
+    migration_cmd: "bundle exec rails db:migrate"
+
+  mcp_suggestions:
+    - name: postgres
+      package: "@bytebase/dbhub"
+      when: "database detected"
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

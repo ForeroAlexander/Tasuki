@@ -1,0 +1,74 @@
+# Tasuki Stack Profile: Python + Flask
+
+stack:
+  backend:
+    lang: python
+    framework: flask
+    version_cmd: "python3 --version"
+    run_cmd: "flask run"
+
+  conventions:
+    routing:
+      - "Use Blueprints for modular route organization"
+      - "Decorator-based routes: `@bp.route('/path', methods=['GET', 'POST'])`"
+      - "Auth via decorators: `@login_required` or custom `@jwt_required`"
+      - "Use `flask-restx` or `flask-smorest` for API structure and docs"
+      - "Return `jsonify()` for API responses, never raw dicts"
+      - "Use `logger = logging.getLogger(__name__)` — never `print()`"
+      - "Error handlers: `@app.errorhandler(404)` for consistent error format"
+
+    models:
+      - "Use Flask-SQLAlchemy with `db.Model` base class"
+      - "Timestamps: `db.Column(db.DateTime, default=datetime.utcnow)`"
+      - "Soft delete: `deleted_at = db.Column(db.DateTime, nullable=True)`"
+      - "Relationships: `db.relationship()` with `backref` or `back_populates`"
+      - "Use Marshmallow schemas for serialization/validation"
+
+    migrations:
+      - "Use Flask-Migrate (Alembic wrapper): `flask db migrate -m 'description'`"
+      - "Review generated migration before applying"
+      - "Apply: `flask db upgrade`, Rollback: `flask db downgrade`"
+      - "Always include downgrade logic"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use pytest with `app.test_client()` for request testing"
+      - "Use `conftest.py` for app factory fixture and test DB"
+      - "Mock external services — never hit real APIs"
+      - "Test auth: 401 without token, 403 wrong role"
+
+    docker:
+      - "Use `python:3.12-slim` base image"
+      - "Use gunicorn for production: `gunicorn -w 4 'app:create_app()'`"
+      - "Never use Flask dev server in production"
+      - "Always `pip install --no-cache-dir`"
+
+  security_checks:
+    python:
+      - pattern: '\.execute\s*\(\s*f["\x27]'
+        issue: "SQL INJECTION: f-string inside .execute()"
+        fix: "Use parameterized queries"
+      - pattern: 'app\.run\s*\(.*debug\s*=\s*True'
+        issue: "SECURITY: Debug mode enables interactive debugger"
+        fix: "Never run debug=True in production"
+      - pattern: 'SECRET_KEY\s*=\s*["\x27]'
+        issue: "HARDCODED SECRET: Secret key in source code"
+        fix: "Use environment variable"
+
+  tools:
+    scanner: "bandit"
+    linter: "ruff"
+    formatter: "ruff format"
+    test_runner: "python3 -m pytest"
+    migration_cmd: "flask db migrate"
+
+  mcp_suggestions:
+    - name: postgres
+      package: "@bytebase/dbhub"
+      when: "database detected"
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

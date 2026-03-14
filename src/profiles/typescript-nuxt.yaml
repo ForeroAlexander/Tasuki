@@ -1,0 +1,64 @@
+# Tasuki Stack Profile: TypeScript + Nuxt
+
+stack:
+  backend:
+    lang: typescript
+    framework: nuxt
+    version_cmd: "node --version"
+    run_cmd: "npm run dev"
+
+  conventions:
+    routing:
+      - "File-based routing in `pages/` directory"
+      - "API routes in `server/api/` with `defineEventHandler()`"
+      - "Use `useAsyncData()` or `useFetch()` for data fetching"
+      - "Middleware in `middleware/` for auth and redirects"
+      - "Layouts in `layouts/` — use `definePageMeta({ layout: 'admin' })`"
+      - "Auto-imports: components, composables, and utils are auto-imported"
+
+    models:
+      - "Use Prisma or Drizzle with Nuxt server routes"
+      - "Define types in `types/` directory"
+      - "Use Zod for runtime validation in API routes"
+      - "Server-only code in `server/` — never leaks to client"
+
+    migrations:
+      - "Use ORM migration tools (Prisma Migrate, Drizzle Kit)"
+      - "Run migrations before deploying new code"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `@nuxt/test-utils` for Nuxt-specific testing"
+      - "Use `vitest` for unit tests"
+      - "Use `playwright` for E2E tests"
+      - "Test API routes with `$fetch` in test utils"
+
+    docker:
+      - "Use `node:22-alpine` base image"
+      - "Build: `npm run build`, run: `node .output/server/index.mjs`"
+      - "Set `NUXT_HOST=0.0.0.0` and `NUXT_PORT=3000`"
+
+  security_checks:
+    typescript:
+      - pattern: 'v-html'
+        issue: "XSS: v-html renders unescaped HTML"
+        fix: "Use text interpolation or sanitize with DOMPurify"
+      - pattern: 'eval\s*\('
+        issue: "CODE INJECTION: eval() executes arbitrary code"
+        fix: "Use JSON.parse()"
+
+  tools:
+    linter: "nuxi lint"
+    formatter: "prettier"
+    test_runner: "npx vitest"
+
+  mcp_suggestions:
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: playwright
+      package: "@anthropic-ai/mcp-server-playwright"
+      when: "frontend detected"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

@@ -1,0 +1,66 @@
+# Tasuki Stack Profile: TypeScript + SvelteKit
+
+stack:
+  backend:
+    lang: typescript
+    framework: sveltekit
+    version_cmd: "node --version"
+    run_cmd: "npm run dev"
+
+  conventions:
+    routing:
+      - "File-based routing in `src/routes/`"
+      - "Server load functions in `+page.server.ts` and `+layout.server.ts`"
+      - "API routes in `src/routes/api/` with `+server.ts` files"
+      - "Use `+page.ts` for universal (SSR+CSR) load, `+page.server.ts` for server-only"
+      - "Form actions in `+page.server.ts` with `actions: { default, named }`"
+      - "Error pages: `+error.svelte`, loading: `+loading.svelte`"
+      - "Auth via hooks: `src/hooks.server.ts` for session validation"
+
+    models:
+      - "Use Prisma, Drizzle, or direct SQL for database access"
+      - "Types in `src/lib/types/` — shared between server and client"
+      - "Use Zod for form validation with superforms"
+      - "Server-only imports: `$env/static/private` for secrets"
+
+    migrations:
+      - "Use ORM migration tools"
+      - "Never use `$env/static/private` on the client side"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `vitest` for unit tests with `@testing-library/svelte`"
+      - "Use `playwright` for E2E tests (`npx playwright test`)"
+      - "Test form actions and load functions separately"
+      - "Mock fetch in tests with MSW"
+
+    docker:
+      - "Use `node:22-alpine` base image"
+      - "Build: `npm run build`, output in `build/`"
+      - "Use adapter-node for Docker deployment"
+      - "Set `ORIGIN=https://yourdomain.com` in production"
+
+  security_checks:
+    svelte:
+      - pattern: '\{@html'
+        issue: "XSS: {@html} renders unescaped HTML in Svelte templates"
+        fix: "Use text interpolation {variable} or sanitize with DOMPurify"
+      - pattern: '\$env/static/private'
+        issue: "SECRET LEAK: Check this is only used in server files (+server.ts, +page.server.ts)"
+        fix: "Never import private env in client-side code"
+
+  tools:
+    linter: "eslint"
+    formatter: "prettier"
+    test_runner: "npx vitest"
+
+  mcp_suggestions:
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: playwright
+      package: "@anthropic-ai/mcp-server-playwright"
+      when: "frontend detected"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"

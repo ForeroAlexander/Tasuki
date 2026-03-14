@@ -1,0 +1,84 @@
+# Tasuki Stack Profile: PHP + Laravel
+
+stack:
+  backend:
+    lang: php
+    framework: laravel
+    version_cmd: "php --version"
+    run_cmd: "php artisan serve"
+
+  conventions:
+    routing:
+      - "Routes in `routes/api.php` (API) and `routes/web.php` (web)"
+      - "Use Resource Controllers: `Route::apiResource('users', UserController::class)`"
+      - "Auth via middleware: `->middleware('auth:sanctum')` or `->middleware('auth')`"
+      - "Form requests for validation: `php artisan make:request CreateUserRequest`"
+      - "API Resources for response transformation: `return new UserResource($user)`"
+      - "Use `Log::info()` for logging — never `echo` or `dd()` in production"
+      - "Exception handling in `app/Exceptions/Handler.php`"
+
+    models:
+      - "Eloquent models with `$fillable` or `$guarded` (mass assignment protection)"
+      - "Timestamps automatic: `created_at` and `updated_at` via `$timestamps = true`"
+      - "Soft delete: `use SoftDeletes;` trait in model"
+      - "Relationships: `hasMany()`, `belongsTo()`, `belongsToMany()` methods"
+      - "Scopes: `scopeActive($query) { return $query->whereNull('deleted_at'); }`"
+      - "Casts: `protected $casts = ['settings' => 'array', 'is_admin' => 'boolean']`"
+      - "Use UUIDs: `use HasUuids;` trait for UUID primary keys"
+
+    migrations:
+      - "Generate: `php artisan make:migration create_users_table`"
+      - "Use Schema Builder: `Schema::create('users', function (Blueprint $table) { ... })`"
+      - "Run: `php artisan migrate`, Rollback: `php artisan migrate:rollback`"
+      - "Always include `down()` method"
+      - "Never modify a migration that has run in production — create new one"
+      - "Add indexes: `$table->index('email')` or `$table->unique('email')`"
+
+    testing:
+      - "Tests FIRST: Write failing tests before implementing"
+      - "Use `php artisan make:test UserTest` for feature tests"
+      - "Use `RefreshDatabase` trait for test DB isolation"
+      - "Factories: `User::factory()->count(5)->create()`"
+      - "Test API: `$this->postJson('/api/users', $data)->assertStatus(201)`"
+      - "Test auth: `$this->actingAs($user)->getJson('/api/profile')`"
+      - "Mock external services with `Http::fake()`"
+
+    docker:
+      - "Use `php:8.3-fpm-alpine` base image"
+      - "Install extensions: `pdo_pgsql`, `redis`, `gd`, `zip`"
+      - "Use nginx + php-fpm in production"
+      - "Run `composer install --no-dev --optimize-autoloader`"
+      - "Cache config: `php artisan config:cache && php artisan route:cache`"
+      - "Health checks: `curl -f http://localhost/health`"
+
+  security_checks:
+    php:
+      - pattern: '\$_GET\[|\$_POST\[|\$_REQUEST\['
+        issue: "INPUT: Raw superglobals bypass validation"
+        fix: "Use Request class: $request->input('field')"
+      - pattern: 'DB::raw\s*\(.*\$'
+        issue: "SQL INJECTION: Variable in DB::raw()"
+        fix: "Use query builder bindings or Eloquent"
+      - pattern: 'eval\s*\('
+        issue: "CODE INJECTION: eval() executes arbitrary PHP"
+        fix: "Never use eval with user input"
+      - pattern: '{!!\s*\$'
+        issue: "XSS: {!! !!} renders unescaped HTML in Blade"
+        fix: "Use {{ }} for escaped output"
+
+  tools:
+    linter: "phpstan"
+    formatter: "pint"
+    test_runner: "php artisan test"
+    migration_cmd: "php artisan migrate"
+
+  mcp_suggestions:
+    - name: postgres
+      package: "@bytebase/dbhub"
+      when: "database detected"
+    - name: context7
+      package: "@upstash/context7-mcp@latest"
+      when: "always"
+    - name: github
+      url: "https://api.githubcopilot.com/mcp/"
+      when: "git repo detected"
