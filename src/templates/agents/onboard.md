@@ -60,7 +60,8 @@ Priority:
 
 Read `$TASUKI_DIR/src/registry.yaml`. For each agent:
 - If `stack_required` is set, check if that stack was detected
-- If `always_active` is true, always include
+- If `activation: always`, always include
+- If `activation: conditional`, include only if stack is detected
 - If `activation: reactive`, include but mark as on-demand
 
 Result: list of agents to activate, list of agents to skip (with reason).

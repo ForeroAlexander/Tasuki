@@ -40,6 +40,8 @@ generate_config() {
     fi
   } >> "$output"
 
+  translate_tasuki_paths "gemini" "$output"
+
   log_success "  Gemini: GEMINI.md ($(wc -l < "$output") lines)"
 }
 

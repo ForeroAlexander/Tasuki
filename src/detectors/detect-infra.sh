@@ -71,7 +71,7 @@ fi
 # --- Services count from compose ---
 service_count=0
 if [ -n "$compose_file" ]; then
-  service_count=$(grep -c "^\s\+[a-zA-Z_-]\+:" "$compose_file" 2>/dev/null || echo "0")
+  service_count=$(grep -c "^\s\+[a-zA-Z_-]\+:" "$compose_file" 2>/dev/null) || service_count=0
 fi
 
 # --- Dockerfile count ---

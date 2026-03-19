@@ -21,7 +21,7 @@ agents:
     tools: [Read, Glob, Grep, Bash, Agent]
     model: opus
     permission_mode: plan
-    always_active: true
+    activation: always
 
   qa:
     role: "QA Engineer"
@@ -38,8 +38,8 @@ agents:
     skip_when: "No testable changes, documentation-only"
     depends_on: [planner]
     tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
-    model: opus
-    always_active: true
+    model: sonnet
+    activation: always
 
   db-architect:
     role: "Database Architect"
@@ -57,7 +57,8 @@ agents:
     skip_when: "No schema changes"
     depends_on: [planner, qa]
     tools: [Read, Write, Edit, Glob, Grep, Bash]
-    model: opus
+    model: sonnet
+    activation: conditional
     stack_required: [database]
     mcp_tools: [mcp__postgres__*]
 
@@ -77,7 +78,8 @@ agents:
     skip_when: "No backend changes"
     depends_on: [qa, db-architect]
     tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
-    model: opus
+    model: sonnet
+    activation: conditional
     stack_required: [backend]
 
   frontend-dev:
@@ -97,7 +99,8 @@ agents:
     skip_when: "No frontend changes"
     depends_on: [backend-dev]
     tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
-    model: opus
+    model: sonnet
+    activation: conditional
     stack_required: [frontend]
     mcp_tools: [mcp__stitch__*, mcp__figma__*, mcp__playwright__*]
 
@@ -116,7 +119,7 @@ agents:
     skip_when: "Everything passes"
     depends_on: []
     tools: [Read, Glob, Grep, Bash, Agent]
-    model: opus
+    model: sonnet
     activation: reactive
     mcp_tools: [mcp__sentry__*, mcp__postgres__*]
 
@@ -133,7 +136,7 @@ agents:
     depends_on: [backend-dev, frontend-dev]
     tools: [Read, Glob, Grep, Bash, Agent]
     model: opus
-    always_active: true
+    activation: always
 
   reviewer:
     role: "Code Reviewer"
@@ -148,7 +151,7 @@ agents:
     depends_on: [security]
     tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
     model: opus
-    always_active: true
+    activation: always
     mcp_tools: [mcp__github__*]
 
   devops:
@@ -166,7 +169,8 @@ agents:
     skip_when: "No infrastructure changes"
     depends_on: [reviewer]
     tools: [Read, Write, Edit, Glob, Grep, Bash, Agent]
-    model: opus
+    model: sonnet
+    activation: conditional
     stack_required: [docker]
     mcp_tools: [mcp__github__*, mcp__sentry__*]
 

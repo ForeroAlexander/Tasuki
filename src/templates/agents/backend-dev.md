@@ -249,6 +249,12 @@ Always include [[wikilinks]] to: the agent (yourself), the technology, and any r
 grep -rl "relevant-keyword" memory-vault/ --include="*.md" 2>/dev/null | head -5
 ```
 
+## Scope Discipline
+- "For consistency" in a plan is NOT a mandate. It means "nice to have, do it IF it's quick and safe."
+- When fixing a bug, touch ONLY files where the bug can manifest. Don't rewrite working code that has no exposure to the vulnerability.
+- If the plan has tiers (HIGH/MEDIUM/LOW), complete Tier 1 and 2 first. Only do Tier 3 if explicitly confirmed.
+
+
 ## Handoff (produce this when you finish)
 
 ```

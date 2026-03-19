@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>Memory, discipline, and a process your AI can't skip.</b><br>
-  <i>Built for Claude Code. Compatible with Cursor, Codex, Copilot, Windsurf, Continue, Roo Code, and Gemini.</i><br><br>
+  <i>Real multi-agent orchestration on Claude Code (Agent Teams). Compatible with Cursor, Codex, Copilot, Windsurf, Continue, Roo Code, and Gemini.</i><br><br>
   <sub>Tasuki (襷) — the sash used in Japan to tie back sleeves before working.<br>It prepares your AI assistant with structure, workflow, and memory so it can work properly.</sub>
 </p>
 
@@ -21,7 +21,13 @@ git clone https://github.com/ForeroAlexander/Tasuki.git
 cd Tasuki && bash install.sh
 ```
 
-**Requirements:** bash, git, curl, awk. Optional: python3, node/npx, jq.
+**Requirements:** bash, git, python3. Optional: node/npx, jq, curl.
+
+Or via Homebrew (installs Python automatically):
+```bash
+brew tap ForeroAlexander/tasuki
+brew install tasuki
+```
 
 ## The Problem
 
@@ -68,7 +74,9 @@ The pipeline runs automatically — 9 agents, sequential:
 | **Reviewer** | Quality gate, 3-round fix loop | 7 |
 | **DevOps** | Docker, CI/CD, deploys | 8 |
 
-Each agent is a 250+ line specialist. Thinking agents (planner, security, reviewer) use the strongest model. Execution agents use fast models. ~60% token savings.
+Each agent is a 250+ line specialist. On Claude Code, agents run as **real teammates** via Agent Teams — separate context windows, per-agent model selection, shared task list. On other tools, agents run as role-switching within the same context.
+
+Thinking agents (planner, security, reviewer) use the strongest model. Execution agents use fast models. ~60% token savings.
 
 ## Memory
 

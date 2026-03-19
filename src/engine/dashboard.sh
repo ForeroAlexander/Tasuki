@@ -1033,7 +1033,7 @@ extract_health_data() {
 
   # Quick inline health calculation
   local test_files source_files test_score=0
-  test_files=$(find "$project_dir" -name "test_*" -o -name "*.test.*" -o -name "*.spec.*" 2>/dev/null | grep -cv node_modules 2>/dev/null || echo "0")
+  test_files=$(find "$project_dir" -name "test_*" -o -name "*.test.*" -o -name "*.spec.*" 2>/dev/null | grep -cv node_modules 2>/dev/null) || test_files=0
   test_files=$(echo "$test_files" | tr -dc '0-9')
   test_files=${test_files:-0}
   source_files=$(find "$project_dir" \( -name "*.py" -o -name "*.ts" -o -name "*.js" -o -name "*.sh" \) -not -path "*/node_modules/*" -not -path "*/__pycache__/*" -not -path "*/.git/*" 2>/dev/null | wc -l | tr -dc '0-9')

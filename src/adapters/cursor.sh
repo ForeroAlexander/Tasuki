@@ -33,12 +33,15 @@ generate_config() {
         echo "---"
         echo "description: \"$desc\""
         echo "globs: \"**/*\""
-        echo "alwaysApply: false"
+        echo "alwaysApply: true"
         echo "---"
         echo ""
         # Strip the YAML frontmatter from the agent and use the body
         sed -n '/^---$/,/^---$/!p' "$agent_file" | tail -n +1
       } > "$rule_file"
+
+      # Translate .tasuki/ paths to .cursor/ equivalents
+      translate_tasuki_paths "cursor" "$rule_file"
 
       log_dim "    rules/$name.md"
     done

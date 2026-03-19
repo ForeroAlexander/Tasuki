@@ -296,175 +296,8 @@ seed_heuristics() {
   local seed_date
   seed_date=$(date '+%Y-%m-%d')
 
-  # Write heuristics via Python to avoid heredoc/bash expansion issues
-  python3 - "$vault" "$seed_date" << 'PYEOF'
-import sys, os
-vault = sys.argv[1]
-seed_date = sys.argv[2]
-hdir = os.path.join(vault, 'heuristics')
-os.makedirs(hdir, exist_ok=True)
-
-files = {
-"always-index-lookup-columns.md": f"""# Always Index Lookup Columns
-
-Type: Heuristic
-Severity: HIGH
-Confidence: high
-Last-Validated: {seed_date}
-Applied-Count: 0
-
-## Applies To
-- [[db-architect]]
-- [[backend-dev]]
-- [[reviewer]]
-
-## Rule
-Every column used in WHERE, JOIN, or ORDER BY clauses must have a database index.
-
-## Reason
-Queries without indexes cause full table scans. On tables with >10K rows, this means seconds instead of milliseconds.
-
-## Anti-Pattern
-```
--- No index on email → full table scan
-SELECT * FROM users WHERE email = 'user@example.com';
-```
-
-## Correct Pattern
-```
-CREATE INDEX idx_users_email ON users(email);
-```
-
-## Related
-- [[postgres]]
-""",
-
-"never-trust-client-input.md": f"""# Never Trust Client Input
-
-Type: Heuristic
-Severity: CRITICAL
-Confidence: high
-Last-Validated: {seed_date}
-Applied-Count: 0
-
-## Applies To
-- [[backend-dev]]
-- [[security]]
-- [[reviewer]]
-
-## Rule
-Validate and sanitize ALL user input at the API boundary. Never pass raw input to queries, file operations, or shell commands.
-
-## Enforcement
-The Security agent runs OWASP checks. The security-check hook scans for common injection patterns.
-
-## Related
-- [[always-use-parameterized-queries]]
-- [[security]]
-""",
-
-"always-use-parameterized-queries.md": f"""# Always Use Parameterized Queries
-
-Type: Heuristic
-Severity: CRITICAL
-Confidence: high
-Last-Validated: {seed_date}
-Applied-Count: 0
-
-## Applies To
-- [[db-architect]]
-- [[backend-dev]]
-- [[security]]
-
-## Rule
-Never use string interpolation or concatenation in SQL queries. Always use parameterized bindings.
-
-## Anti-Pattern
-```
-# VULNERABLE — SQL injection
-db.execute(f"SELECT * FROM users WHERE id = {{user_id}}")
-```
-
-## Correct Pattern
-```
-# SAFE — parameterized
-db.execute("SELECT * FROM users WHERE id = :id", {{"id": user_id}})
-```
-
-## Related
-- [[never-trust-client-input]]
-- [[postgres]]
-""",
-
-"tests-before-code.md": f"""# Tests Before Code (TDD)
-
-Type: Heuristic
-Severity: HIGH
-Confidence: high
-Last-Validated: {seed_date}
-Applied-Count: 0
-
-## Applies To
-- [[qa]]
-- [[backend-dev]]
-- [[frontend-dev]]
-- [[reviewer]]
-
-## Rule
-Write failing tests FIRST, then implement code to make them pass. Never the other way around.
-
-## Reason
-- Forces you to think about behavior before implementation
-- Catches regressions automatically
-- Serves as living documentation
-- Prevents untestable code
-
-## Enforcement
-The TDD Guard hook (tdd-guard.sh) blocks edits to implementation files if no test file exists.
-
-## Related
-- [[qa]]
-""",
-
-"handle-all-ui-states.md": f"""# Handle All UI States
-
-Type: Heuristic
-Severity: HIGH
-Confidence: high
-Last-Validated: {seed_date}
-Applied-Count: 0
-
-## Applies To
-- [[frontend-dev]]
-- [[reviewer]]
-
-## Rule
-Every UI component must handle ALL states: loading, error, empty, success, disabled.
-
-## Anti-Pattern
-```
-// Only shows data — crashes or shows blank on error/loading
-<UserList users={{data}} />
-```
-
-## Correct Pattern
-```
-if loading: <Skeleton />
-else if error: <ErrorMessage />
-else if data.length === 0: <EmptyState />
-else: <UserList users={{data}} />
-```
-
-## Related
-- [[ui-design]]
-- [[ui-ux-pro-max]]
-"""
-}
-
-for name, content in files.items():
-    with open(os.path.join(hdir, name), 'w') as f:
-        f.write(content.strip() + '\n')
-PYEOF
+  # Write heuristics via Python
+  python3 "$SCRIPT_DIR/vault_seed.py" "$vault" "$seed_date"
 
   if [ $? -ne 0 ]; then
     log_warn "  Failed to seed heuristics (python3 required)"
@@ -548,12 +381,12 @@ vault_search() {
     return
   fi
 
-  echo "$results" | while read -r file; do
+  printf '%s\n' "$results" | while read -r file; do
     local rel_path="${file#$vault/}"
     local title
     title=$(head -1 "$file" | sed 's/^#\s*//')
     local type
-    type=$(echo "$rel_path" | cut -d/ -f1)
+    type=$(printf '%s\n' "$rel_path" | cut -d/ -f1)
     echo -e "  ${GREEN}$type/${NC} ${BOLD}$title${NC}"
     echo -e "  ${DIM}$rel_path${NC}"
 
@@ -608,191 +441,7 @@ vault_expand() {
   esac
 
   # Build graph in memory first (one pass), then BFS — O(V+E)
-  python3 << PYEOF
-import os, re
-from collections import defaultdict, deque
-
-vault = "$vault"
-start = "$node"
-max_depth = $depth
-allowed_confidence = set("$confidence_filter".split(","))
-
-# --- Step 1: Build graph in memory (single os.walk) ---
-nodes = {}       # name → {type, summary, links, confidence}
-reverse = defaultdict(set)  # name → set of nodes that reference it
-
-for root, dirs, files in os.walk(vault):
-    for f in files:
-        if not f.endswith('.md') or f == 'index.md':
-            continue
-        fpath = os.path.join(root, f)
-        fname = f.replace('.md', '')
-        rel = os.path.relpath(fpath, vault)
-        ntype = rel.split('/')[0]
-
-        try:
-            with open(fpath) as fh:
-                content = fh.read()
-        except:
-            continue
-
-        # Extract confidence level
-        confidence = 'high'  # default
-        conf_match = re.search(r'Confidence:\s*(\w+)', content)
-        if conf_match:
-            confidence = conf_match.group(1).lower()
-
-        # Extract applied count
-        applied = 0
-        applied_match = re.search(r'Applied-Count:\s*(\d+)', content)
-        if applied_match:
-            applied = int(applied_match.group(1))
-
-        # Extract summary (first non-header, non-metadata line)
-        lines = [l.strip() for l in content.split('\n')
-                 if l.strip() and not l.startswith('#') and l.strip() != '---'
-                 and not l.startswith('Type:') and not l.startswith('Confidence:')
-                 and not l.startswith('Last-Validated:') and not l.startswith('Applied-Count:')
-                 and not l.startswith('Severity:') and not l.startswith('Created:')]
-        summary = lines[0][:120] if lines else fname
-
-        # Extract outgoing wikilinks
-        links = set(re.findall(r'\[\[([a-z0-9_-]+)\]\]', content))
-
-        nodes[fname] = {
-            'type': ntype, 'summary': summary, 'links': links,
-            'confidence': confidence, 'applied': applied
-        }
-
-        # Build reverse index
-        for link in links:
-            reverse[link].add(fname)
-
-# --- Step 2: BFS traversal from start node — O(V+E) ---
-visited = set()
-queue = deque([(start, 0)])
-results = []
-
-while queue:
-    current, depth = queue.popleft()
-    if current in visited or depth > max_depth:
-        continue
-    visited.add(current)
-
-    # Get neighbors: outgoing links + nodes that reference this one
-    neighbors = set()
-    if current in nodes:
-        neighbors |= nodes[current]['links']
-    neighbors |= reverse.get(current, set())
-
-    for neighbor in neighbors:
-        if neighbor in visited:
-            continue
-        if neighbor in nodes:
-            n = nodes[neighbor]
-            # Filter by confidence
-            if n['confidence'] not in allowed_confidence:
-                continue
-            conf_badge = ''
-            if n['confidence'] == 'experimental':
-                conf_badge = ' [experimental]'
-            elif n['confidence'] == 'deprecated':
-                conf_badge = ' [deprecated]'
-            applied_badge = f" (applied {n['applied']}x)" if n['applied'] > 0 else ''
-            results.append({
-                'type': n['type'],
-                'name': neighbor,
-                'summary': n['summary'],
-                'confidence': n['confidence'],
-                'badge': conf_badge + applied_badge,
-                'depth': depth + 1
-            })
-        if depth + 1 < max_depth:
-            queue.append((neighbor, depth + 1))
-
-# --- Step 3: Output ---
-# Deduplicate and exclude start node
-seen = set()
-unique = []
-for r in results:
-    if r['name'] not in seen and r['name'] != start:
-        seen.add(r['name'])
-        unique.append(r)
-
-if unique:
-    print(f"  Graph expansion for [[{start}]] (depth={max_depth}, mode={allowed_confidence}):")
-    for r in sorted(unique, key=lambda x: (x['depth'], x['type'])):
-        indent = "    " + ("  " * r['depth'])
-        print(f"{indent}[{r['type']}] {r['name']}: {r['summary']}{r['badge']}")
-
-    # Log heuristics loaded to activity + increment Applied-Count
-    af = os.path.join("$project_dir", ".tasuki/config/activity-log.json")
-    heuristics_loaded = [r for r in unique if r['type'] == 'heuristics']
-
-    # Filter: only count heuristics that directly reference the calling agent
-    # A heuristic with [[backend-dev]] counts for backend-dev, not for frontend-dev
-    applied_heuristics = []
-    for h in heuristics_loaded:
-        hfile = None
-        for root, dirs, files in os.walk("$vault"):
-            for f in files:
-                if f == h['name'] + '.md':
-                    hfile = os.path.join(root, f)
-                    break
-            if hfile: break
-        if hfile:
-            try:
-                with open(hfile) as fh:
-                    hcontent = fh.read()
-                # Only count if heuristic directly references this agent
-                if '[[' + start + ']]' in hcontent:
-                    applied_heuristics.append(h)
-                    h['_direct'] = True
-                else:
-                    h['_direct'] = False
-            except:
-                h['_direct'] = False
-        else:
-            h['_direct'] = False
-
-    if applied_heuristics and os.path.exists(af):
-        import json as jjson
-        try:
-            with open(af) as fh:
-                adata = jjson.load(fh)
-            for h in applied_heuristics:
-                adata['events'].append({
-                    'time': __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'type': 'heuristic_loaded',
-                    'agent': start,
-                    'detail': f"Applied: {h['name']} — {h['summary'][:60]}"
-                })
-            adata['events'] = adata['events'][-100:]
-            with open(af, 'w') as fh:
-                jjson.dump(adata, fh, indent=2)
-        except: pass
-
-    # Increment Applied-Count only for directly relevant heuristics
-    for h in applied_heuristics:
-        hfile = None
-        for root, dirs, files in os.walk("$vault"):
-            for f in files:
-                if f == h['name'] + '.md':
-                    hfile = os.path.join(root, f)
-                    break
-            if hfile: break
-        if hfile:
-            try:
-                with open(hfile) as fh:
-                    content = fh.read()
-                m = __import__('re').search(r'Applied-Count:\s*(\d+)', content)
-                if m:
-                    count = int(m.group(1)) + 1
-                    content = __import__('re').sub(r'Applied-Count:\s*\d+', f'Applied-Count: {count}', content)
-                    with open(hfile, 'w') as fh:
-                        fh.write(content)
-            except: pass
-PYEOF
+  python3 "$SCRIPT_DIR/vault_graph.py" "$vault" "$node" "$depth" "$confidence_filter" "$project_dir"
 }
 
 # --- Update confidence of a memory ---
@@ -881,110 +530,7 @@ vault_decay() {
   today=$(date '+%Y-%m-%d')
   local changes=0
 
-  python3 << PYEOF
-import os, re, sys
-from datetime import datetime, timedelta
-
-vault = "$vault"
-today = datetime.strptime("$today", "%Y-%m-%d")
-changes = 0
-promoted = 0
-archived = 0
-
-# Thresholds
-HIGH_TO_EXPERIMENTAL_DAYS = 90
-EXPERIMENTAL_TO_DEPRECATED_DAYS = 60
-DEPRECATED_TO_ARCHIVE_DAYS = 30
-PROMOTE_THRESHOLD = 3  # applied count to promote experimental → high
-
-archive_dir = os.path.join(vault, "archive")
-
-for root, dirs, files in os.walk(vault):
-    # Skip archive directory
-    if "archive" in root:
-        continue
-    for f in files:
-        if not f.endswith('.md') or f == 'index.md':
-            continue
-        fpath = os.path.join(root, f)
-        fname = f.replace('.md', '')
-        rel = os.path.relpath(fpath, vault)
-        ntype = rel.split('/')[0]
-
-        # Only decay heuristics, bugs, lessons, decisions
-        if ntype not in ('heuristics', 'bugs', 'lessons', 'decisions'):
-            continue
-
-        try:
-            with open(fpath) as fh:
-                content = fh.read()
-        except:
-            continue
-
-        # Parse metadata
-        conf_match = re.search(r'Confidence:\s*(\w+)', content)
-        confidence = conf_match.group(1).lower() if conf_match else 'high'
-
-        date_match = re.search(r'Last-Validated:\s*(\d{4}-\d{2}-\d{2})', content)
-        if date_match:
-            last_validated = datetime.strptime(date_match.group(1), "%Y-%m-%d")
-        else:
-            # Use file mtime as fallback
-            last_validated = datetime.fromtimestamp(os.path.getmtime(fpath))
-
-        applied_match = re.search(r'Applied-Count:\s*(\d+)', content)
-        applied = int(applied_match.group(1)) if applied_match else 0
-
-        days_since = (today - last_validated).days
-        new_confidence = confidence
-
-        # --- Promotion: experimental with 3+ applies → high ---
-        if confidence == 'experimental' and applied >= PROMOTE_THRESHOLD:
-            new_confidence = 'high'
-            promoted += 1
-
-        # --- Demotion based on age ---
-        elif confidence == 'high' and days_since > HIGH_TO_EXPERIMENTAL_DAYS:
-            new_confidence = 'experimental'
-            changes += 1
-
-        elif confidence == 'experimental' and days_since > EXPERIMENTAL_TO_DEPRECATED_DAYS:
-            new_confidence = 'deprecated'
-            changes += 1
-
-        elif confidence == 'deprecated' and days_since > DEPRECATED_TO_ARCHIVE_DAYS:
-            # Archive: move to memory-vault/archive/
-            os.makedirs(archive_dir, exist_ok=True)
-            dest = os.path.join(archive_dir, f)
-            os.rename(fpath, dest)
-            archived += 1
-            print(f"  archived: {ntype}/{fname} (deprecated for {days_since} days)")
-            continue
-
-        # Update file if confidence changed
-        if new_confidence != confidence:
-            if 'Confidence:' in content:
-                content = re.sub(r'Confidence:\s*\w+', f'Confidence: {new_confidence}', content)
-            else:
-                content = content.replace('Type:', f'Confidence: {new_confidence}\nType:', 1)
-
-            # Update Last-Validated on promotion
-            if new_confidence == 'high' and confidence == 'experimental':
-                content = re.sub(r'Last-Validated:\s*\d{4}-\d{2}-\d{2}',
-                                 f'Last-Validated: {today.strftime("%Y-%m-%d")}', content)
-
-            with open(fpath, 'w') as fh:
-                fh.write(content)
-
-            direction = "promoted" if new_confidence == 'high' else "demoted"
-            print(f"  {direction}: {ntype}/{fname} ({confidence} → {new_confidence}, {days_since}d since validation, {applied}x applied)")
-
-total = changes + promoted + archived
-if total == 0:
-    print("  All memories up to date. No decay needed.")
-else:
-    print(f"  Summary: {changes} demoted, {promoted} promoted, {archived} archived")
-PYEOF
+  python3 "$SCRIPT_DIR/vault_decay.py" "$vault" "$today"
 }
 
 # --- Vault stats ---
@@ -1030,7 +576,7 @@ vault_stats() {
   echo ""
   echo -e "  ${BOLD}Most connected nodes:${NC}"
   grep -roEh '\[\[[a-z0-9_-]+\]\]' "$vault" --include="*.md" 2>/dev/null | sort | uniq -c | sort -rn | head -10 | while read -r count node; do
-    node=$(echo "$node" | sed 's/\[\[//;s/\]\]//')
+    node=$(printf '%s\n' "$node" | sed 's/\[\[//;s/\]\]//')
     echo -e "    ${GREEN}$count${NC} links → $node"
   done
   echo ""
@@ -1080,12 +626,7 @@ vault_rag_sync() {
     node_name=$(basename "$node_file" .md)
     tags=$(grep -oE '\[\[[a-z0-9_-]+\]\]' "$node_file" 2>/dev/null | sed 's/\[\[//;s/\]\]//' | sort -u | tr '\n' ',' | sed 's/,$//')
 
-    python3 -c "
-import json, sys
-content = open('$node_file').read()
-entry = {'id': 'vault/$node_type/$node_name', 'type': '$node_type', 'name': '$node_name', 'tags': '$tags', 'content': content}
-print(json.dumps(entry))
-" >> "$json_file" 2>/dev/null
+    python3 "$SCRIPT_DIR/vault_sync.py" memory "$node_file" "$node_type" "$node_name" "$tags" "$json_file" >> "$json_file" 2>/dev/null
     synced=$((synced + 1))
   done
   log_dim "    $synced memories"
@@ -1094,85 +635,11 @@ print(json.dumps(entry))
   local schema_count=0
   log_dim "  Indexing database schema..."
 
-  # Find model files: models.py, models/*.py, or any .py with Column/Model/Base
-  python3 - "$project_dir" "$json_file" << 'PYEOF'
-import os, sys, json, re
-
-project = sys.argv[1]
-json_file = sys.argv[2]
-count = 0
-
-exclude = {'node_modules', '.git', '__pycache__', '.venv', 'venv', '.tasuki', 'memory-vault'}
-
-for root, dirs, files in os.walk(project):
-    dirs[:] = [d for d in dirs if d not in exclude]
-    for f in files:
-        if not f.endswith('.py'): continue
-        fpath = os.path.join(root, f)
-        rel = os.path.relpath(fpath, project)
-
-        # Match model files by path or content
-        is_model = False
-        if '/models/' in rel or '/models.py' in rel or '/entities/' in rel:
-            is_model = True
-
-        if not is_model:
-            continue
-
-        try:
-            content = open(fpath).read()
-        except:
-            continue
-
-        # Verify it actually has model definitions
-        if not re.search(r'class \w+.*(?:Base|Model|db\.Model|DeclarativeBase)', content):
-            continue
-
-        models = re.findall(r'class (\w+)\(', content)
-        columns = re.findall(r'Column\((\w+)', content)
-        app_name = os.path.basename(os.path.dirname(fpath))
-
-        entry = {
-            'id': f'schema/{app_name}/{f.replace(".py","")}',
-            'type': 'schema',
-            'name': f'{app_name}/{f}' if f != 'models.py' else f'{app_name} models',
-            'tags': ','.join(models[:10]),
-            'content': content[:3000]
-        }
-        with open(json_file, 'a') as jf:
-            jf.write(json.dumps(entry) + '\n')
-        count += 1
-
-# Also index recent migrations (last 10)
-mig_files = []
-for root, dirs, files in os.walk(project):
-    dirs[:] = [d for d in dirs if d not in exclude]
-    if 'migrations' in root or 'alembic' in root or 'versions' in root:
-        for f in sorted(files):
-            if f.endswith('.py') and f != '__init__.py':
-                mig_files.append(os.path.join(root, f))
-
-for fpath in mig_files[-10:]:
-    try:
-        content = open(fpath).read()[:2000]
-    except:
-        continue
-    mig_name = os.path.basename(fpath).replace('.py', '')
-    entry = {
-        'id': f'schema/migrations/{mig_name}',
-        'type': 'migration',
-        'name': mig_name,
-        'tags': 'schema,migration,database',
-        'content': content
-    }
-    with open(json_file, 'a') as jf:
-        jf.write(json.dumps(entry) + '\n')
-    count += 1
-
-PYEOF
+  # Find model files and migrations
+  python3 "$SCRIPT_DIR/vault_sync.py" schema "$project_dir" "$json_file"
   # Re-count from file
-  schema_count=$(grep -cE '"type": "schema"|"type": "migration"' "$json_file" 2>/dev/null || echo "0")
-  schema_count=$(echo "$schema_count" | tr -dc '0-9')
+  schema_count=$(grep -cE '"type": "schema"|"type": "migration"' "$json_file" 2>/dev/null) || schema_count=0
+  schema_count=$(printf '%s\n' "$schema_count" | tr -dc '0-9')
   schema_count=${schema_count:-0}
   synced=$((synced + schema_count))
   log_dim "    $schema_count schema files"
@@ -1181,58 +648,9 @@ PYEOF
   local api_count=0
   log_dim "  Indexing API endpoints..."
 
-  python3 - "$project_dir" "$json_file" << 'PYEOF'
-import os, sys, json, re
-
-project = sys.argv[1]
-json_file = sys.argv[2]
-count = 0
-
-exclude = {'node_modules', '.git', '__pycache__', '.venv', 'venv', '.tasuki', 'memory-vault'}
-
-for root, dirs, files in os.walk(project):
-    dirs[:] = [d for d in dirs if d not in exclude]
-    for f in files:
-        if not f.endswith('.py') and not f.endswith('.ts'): continue
-        fpath = os.path.join(root, f)
-        rel = os.path.relpath(fpath, project)
-
-        # Match API files by path
-        is_api = False
-        if any(p in rel for p in ['/routers/', '/views/', '/routes/', '/controllers/', '/endpoints/', '/serializers/', '/schemas/']):
-            is_api = True
-
-        if not is_api:
-            continue
-
-        try:
-            content = open(fpath).read()
-        except:
-            continue
-
-        # Verify it has route/endpoint definitions
-        if not re.search(r'@router\.|@app\.|APIRouter|@Get|@Post|@Put|@Delete|class.*View|class.*Serializer', content):
-            continue
-
-        # Extract endpoints
-        endpoints = re.findall(r'(?:@router|@app)\.\w+\(["\']([^"\']+)', content)
-        app_name = os.path.basename(os.path.dirname(fpath))
-        api_type = f.replace('.py', '').replace('.ts', '')
-
-        entry = {
-            'id': f'api/{app_name}/{api_type}',
-            'type': 'api',
-            'name': f'{app_name}/{api_type}',
-            'tags': 'api,' + ','.join(endpoints[:5]),
-            'content': content[:3000]
-        }
-        with open(json_file, 'a') as jf:
-            jf.write(json.dumps(entry) + '\n')
-        count += 1
-
-PYEOF
-  api_count=$(grep -c '"type": "api"' "$json_file" 2>/dev/null || echo "0")
-  api_count=$(echo "$api_count" | tr -dc '0-9')
+  python3 "$SCRIPT_DIR/vault_sync.py" api "$project_dir" "$json_file"
+  api_count=$(grep -c '"type": "api"' "$json_file" 2>/dev/null) || api_count=0
+  api_count=$(printf '%s\n' "$api_count" | tr -dc '0-9')
   api_count=${api_count:-0}
   synced=$((synced + api_count))
   log_dim "    $api_count API files"
@@ -1247,18 +665,7 @@ PYEOF
     plan_name=$(basename "$plan_file" .md)
     local feature_dir
     feature_dir=$(basename "$(dirname "$plan_file")")
-    python3 -c "
-import json
-content = open('$plan_file').read()[:3000]
-entry = {
-    'id': 'plan/$feature_dir/$plan_name',
-    'type': 'plan',
-    'name': '$feature_dir — $plan_name',
-    'tags': 'plan,$feature_dir,planner',
-    'content': content
-}
-print(json.dumps(entry))
-" >> "$json_file" 2>/dev/null
+    python3 "$SCRIPT_DIR/vault_sync.py" plan "$plan_file" "$feature_dir" "$plan_name" "$json_file" >> "$json_file" 2>/dev/null
     plan_count=$((plan_count + 1))
   done
   synced=$((synced + plan_count))
@@ -1268,40 +675,8 @@ print(json.dumps(entry))
   local git_count=0
   if [ -d "$project_dir/.git" ]; then
     log_dim "  Indexing recent git history..."
-    python3 - "$project_dir" "$json_file" << 'PYEOF'
-import subprocess, json, sys, os
-
-project = sys.argv[1]
-json_file = sys.argv[2]
-os.chdir(project)
-
-try:
-    log = subprocess.run(['git', 'log', '--oneline', '-20'], capture_output=True, text=True, cwd=project)
-    for line in log.stdout.strip().split('\n'):
-        if not line.strip(): continue
-        parts = line.split(' ', 1)
-        sha = parts[0]
-        msg = parts[1] if len(parts) > 1 else ''
-        # Get diff stat
-        try:
-            diff = subprocess.run(['git', 'diff', f'{sha}~1', sha, '--stat'], capture_output=True, text=True, cwd=project)
-            stat = diff.stdout[:1000]
-        except:
-            stat = ''
-        if not stat: continue
-        entry = {
-            'id': f'git/{sha}',
-            'type': 'commit',
-            'name': f'{sha} — {msg[:80]}',
-            'tags': 'git,commit,history',
-            'content': f'{msg}\n\n{stat}'
-        }
-        with open(json_file, 'a') as f:
-            f.write(json.dumps(entry) + '\n')
-except:
-    pass
-PYEOF
-    git_count=$(grep -c '"type": "commit"' "$json_file" 2>/dev/null || echo "0")
+    python3 "$SCRIPT_DIR/vault_sync.py" git "$project_dir" "$json_file"
+    git_count=$(grep -c '"type": "commit"' "$json_file" 2>/dev/null) || git_count=0
     synced=$((synced + git_count))
     log_dim "    $git_count commits"
   fi
@@ -1314,18 +689,7 @@ PYEOF
     [ -f "$cfg_file" ] || continue
     local cfg_name
     cfg_name=$(basename "$cfg_file")
-    python3 -c "
-import json
-content = open('$cfg_file').read()[:2000]
-entry = {
-    'id': 'config/$cfg_name',
-    'type': 'config',
-    'name': '$cfg_name',
-    'tags': 'config,infrastructure',
-    'content': content
-}
-print(json.dumps(entry))
-" >> "$json_file" 2>/dev/null
+    python3 "$SCRIPT_DIR/vault_sync.py" config "$cfg_file" "$cfg_name" "$json_file" >> "$json_file" 2>/dev/null
     config_count=$((config_count + 1))
   done
   synced=$((synced + config_count))
@@ -1356,26 +720,7 @@ vault_rag_setup() {
 
   # Add rag-memory-mcp to .mcp.json
   if [ -f "$mcp_file" ] && command -v python3 &>/dev/null; then
-    python3 -c "
-import json
-with open('$mcp_file') as f:
-    data = json.load(f)
-servers = data.get('mcpServers', {})
-if 'rag-memory' not in servers:
-    servers['rag-memory'] = {
-        'command': 'npx',
-        'args': ['-y', 'rag-memory-mcp'],
-        'env': {
-            'MEMORY_DB_PATH': '$project_dir/.tasuki/config/rag-memory.db'
-        }
-    }
-    data['mcpServers'] = servers
-    with open('$mcp_file', 'w') as f:
-        json.dump(data, f, indent=2)
-    print('  rag-memory-mcp added to .mcp.json')
-else:
-    print('  rag-memory-mcp already configured')
-" 2>/dev/null
+    python3 "$SCRIPT_DIR/vault_sync.py" setup "$mcp_file" "$project_dir" 2>/dev/null
   fi
 }
 
@@ -1400,49 +745,7 @@ vault_rag_query() {
 
   # Search using python for reliable JSON parsing
   if command -v python3 &>/dev/null; then
-    python3 -c "
-import json, sys
-
-query = '$query'.lower()
-results = []
-with open('$batch_file') as f:
-    for line in f:
-        line = line.strip()
-        if not line: continue
-        try:
-            entry = json.loads(line)
-            # Search in name, tags, content, type
-            searchable = ' '.join([
-                entry.get('name', ''),
-                entry.get('tags', ''),
-                entry.get('content', '')[:500],
-                entry.get('type', '')
-            ]).lower()
-            if query in searchable:
-                results.append(entry)
-        except json.JSONDecodeError:
-            continue
-
-if not results:
-    print('  No results found. Try different keywords.')
-else:
-    for r in results[:8]:
-        typ = r.get('type', '?')
-        name = r.get('name', 'unknown')
-        rid = r.get('id', '')
-        tags = r.get('tags', '')
-        # Color by type
-        colors = {'schema': '36', 'api': '33', 'plan': '35', 'config': '2', 'commit': '2'}
-        c = colors.get(typ, '32')
-        print(f'  \033[0;{c}m[{typ}]\033[0m \033[1m{name}\033[0m \033[2m({rid})\033[0m')
-        if tags:
-            print(f'    \033[2mlinks: {tags}\033[0m')
-        # Show snippet of content
-        content = r.get('content', '')
-        snippet = ' '.join(content.split()[:20])
-        if snippet:
-            print(f'    \033[2m{snippet}...\033[0m')
-" 2>/dev/null
+    python3 "$SCRIPT_DIR/vault_sync.py" query "$batch_file" "$query" 2>/dev/null
   fi
   echo ""
 }
@@ -1618,7 +921,7 @@ vault_pull() {
 
     mkdir -p "$vault/$type"
 
-    echo "$files" | while read -r fname; do
+    printf '%s\n' "$files" | while read -r fname; do
       [ -z "$fname" ] && continue
       local dest="$vault/$type/$fname"
 
@@ -1643,14 +946,14 @@ vault_pull() {
         # Save remote with -team suffix
         local base_name="${fname%.md}"
         local team_dest="$vault/$type/${base_name}-team.md"
-        echo "$remote_content" > "$team_dest"
+        printf '%s\n' "$remote_content" > "$team_dest"
         log_dim "    conflict: $type/$fname — kept both (local + ${base_name}-team.md)"
         pulled=$((pulled + 1))
         continue
       fi
 
       # No local file — pull directly
-      echo "$remote_content" > "$dest"
+      printf '%s\n' "$remote_content" > "$dest"
       pulled=$((pulled + 1))
     done
   done

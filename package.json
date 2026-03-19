@@ -1,6 +1,6 @@
 {
   "name": "tasuki",
-  "version": "1.0.13",
+  "version": "1.1.0",
   "description": "Multi-agent orchestration framework for AI-assisted development. 9 specialized agents, two-layer memory (wikilinks + RAG), TDD enforcement, knowledge graph, and interactive dashboard. Beta — actively improving.",
   "author": "Alexander Forero",
   "license": "MIT",

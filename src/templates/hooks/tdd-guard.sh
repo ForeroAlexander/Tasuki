@@ -31,8 +31,8 @@ fi
 
 FILE_PATH=""
 if [ -n "$INPUT" ]; then
-  FILE_PATH=$(echo "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
-  [ -z "$FILE_PATH" ] && FILE_PATH=$(echo "$INPUT" | grep -oP '"tool_input".*"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
+  FILE_PATH=$(printf '%s\n' "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
+  [ -z "$FILE_PATH" ] && FILE_PATH=$(printf '%s\n' "$INPUT" | grep -oP '"tool_input".*"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
 fi
 
 # If we can't determine the file, allow
@@ -43,42 +43,42 @@ fi
 # --- Always allow these files ---
 
 # Test files — this IS the test, allow it
-if echo "$FILE_PATH" | grep -qE 'test_|_test\.|\.test\.|\.spec\.|/tests/|/test/|/spec/|/__tests__/|conftest'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE 'test_|_test\.|\.test\.|\.spec\.|/tests/|/test/|/spec/|/__tests__/|conftest'; then
   exit 0
 fi
 
 # Config files
-if echo "$FILE_PATH" | grep -qE '\.(json|yaml|yml|toml|ini|cfg|env|lock)$'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE '\.(json|yaml|yml|toml|ini|cfg|env|lock)$'; then
   exit 0
 fi
 
 # Documentation
-if echo "$FILE_PATH" | grep -qE '\.(md|txt|rst|adoc)$'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE '\.(md|txt|rst|adoc)$'; then
   exit 0
 fi
 
 # Static/template files
-if echo "$FILE_PATH" | grep -qE '\.(html|css|scss|less|svg|png|jpg|ico)$'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE '\.(html|css|scss|less|svg|png|jpg|ico)$'; then
   exit 0
 fi
 
 # Migration files
-if echo "$FILE_PATH" | grep -qE 'migrat|alembic/versions|db/migrate|prisma/migrations'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE 'migrat|alembic/versions|db/migrate|prisma/migrations'; then
   exit 0
 fi
 
 # Init files
-if echo "$FILE_PATH" | grep -qE '__init__\.py$|\.gitkeep$'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE '__init__\.py$|\.gitkeep$'; then
   exit 0
 fi
 
 # Tasuki/Claude config files
-if echo "$FILE_PATH" | grep -qE '\.tasuki/|CLAUDE\.md|\.mcp\.json'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE '\.tasuki/|CLAUDE\.md|\.mcp\.json'; then
   exit 0
 fi
 
 # Docker/CI files
-if echo "$FILE_PATH" | grep -qE 'Dockerfile|docker-compose|compose\.|\.github/|\.gitlab|Jenkinsfile|Makefile'; then
+if printf '%s\n' "$FILE_PATH" | grep -qE 'Dockerfile|docker-compose|compose\.|\.github/|\.gitlab|Jenkinsfile|Makefile'; then
   exit 0
 fi
 
@@ -90,7 +90,7 @@ EXT="${BASENAME##*.}"
 NAME="${BASENAME%.*}"
 
 # Skip if file doesn't have a code extension
-if ! echo "$EXT" | grep -qE '^(py|ts|tsx|js|jsx|go|rb|java|rs)$'; then
+if ! printf '%s\n' "$EXT" | grep -qE '^(py|ts|tsx|js|jsx|go|rb|java|rs)$'; then
   exit 0
 fi
 
@@ -111,7 +111,8 @@ case "$EXT" in
     # Python: test_name.py or name_test.py
     for test_dir in tests test; do
       [ -f "$PROJECT_ROOT/$test_dir/test_${NAME}.py" ] && FOUND_TEST=true
-      [ -f "$PROJECT_ROOT/$test_dir/test_${NAME}_*.py" ] && FOUND_TEST=true
+      # Use find for glob patterns ([ -f ] doesn't expand wildcards)
+      find "$PROJECT_ROOT/$test_dir" -maxdepth 1 -name "test_${NAME}_*.py" 2>/dev/null | head -1 | grep -q . && FOUND_TEST=true
     done
     # Also check alongside the source
     [ -f "$DIRNAME/test_${NAME}.py" ] && FOUND_TEST=true
@@ -166,15 +167,13 @@ else
   # Log to activity
   ACTIVITY_FILE="$PROJECT_ROOT/.tasuki/config/activity-log.json"
   if [ -f "$ACTIVITY_FILE" ] && command -v python3 &>/dev/null; then
-    python3 -c "
-import json
-try:
-    with open('$ACTIVITY_FILE') as f: data = json.load(f)
-    data['events'].append({'time':'$(date "+%Y-%m-%d %H:%M:%S")','type':'hook_blocked','agent':'tdd-guard','detail':'Blocked edit to $BASENAME — no tests exist'})
-    data['events'] = data['events'][-100:]
-    with open('$ACTIVITY_FILE','w') as f: json.dump(data, f, indent=2)
-except: pass
-" 2>/dev/null
+    logger=""
+    for candidate in \
+      "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../src/engine/hook_logger.py" \
+      "$(dirname "$(readlink -f "$(command -v tasuki)" 2>/dev/null)")/../src/engine/hook_logger.py"; do
+      [ -f "$candidate" ] && logger="$candidate" && break
+    done 2>/dev/null
+    [ -n "$logger" ] && python3 "$logger" "$ACTIVITY_FILE" "$(date "+%Y-%m-%d %H:%M:%S")" "tdd-guard" "Blocked edit to $BASENAME — no tests exist"
   fi
   exit 2
 fi

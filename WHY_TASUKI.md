@@ -29,7 +29,7 @@ And what if the pipeline was enforced mechanically — not by asking nicely, but
 
 And what if the team had a shared memory — a knowledge graph where every lesson learned, every bug found, every architectural decision was saved and loaded automatically on the next task?
 
-That's Tasuki.
+That's Tasuki. And on Claude Code, this isn't simulated — each agent runs as a real teammate with its own context window and model via Agent Teams. On other tools, the same pipeline runs through role-switching.
 
 ## Why I built it
 

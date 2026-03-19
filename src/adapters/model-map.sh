@@ -83,12 +83,17 @@ translate_file_models() {
   sonnet_model=$(translate_model "$platform" "sonnet")
   haiku_model=$(translate_model "$platform" "haiku")
 
-  # Replace in file
+  # Replace model references in frontmatter and structured fields only
+  # Do NOT replace prose words like "Opus" or "Sonnet" — only model: references
   sed -i \
-    -e "s/model: opus/model: $opus_model/g" \
-    -e "s/model: sonnet/model: $sonnet_model/g" \
-    -e "s/model: haiku/model: $haiku_model/g" \
-    -e "s/Opus/$opus_model/g" \
-    -e "s/Sonnet/$sonnet_model/g" \
+    -e "s/^model: opus/model: $opus_model/" \
+    -e "s/^model: sonnet/model: $sonnet_model/" \
+    -e "s/^model: haiku/model: $haiku_model/" \
+    -e "s/model_override: opus/model_override: $opus_model/" \
+    -e "s/model_override: sonnet/model_override: $sonnet_model/" \
+    -e "s/model_override: haiku/model_override: $haiku_model/" \
+    -e "s/\*\*Model:\*\* opus/\*\*Model:\*\* $opus_model/" \
+    -e "s/\*\*Model:\*\* sonnet/\*\*Model:\*\* $sonnet_model/" \
+    -e "s/\*\*Model:\*\* haiku/\*\*Model:\*\* $haiku_model/" \
     "$file"
 }

@@ -36,16 +36,10 @@ generate_config() {
         sed -n '/^---$/,/^---$/!p' "$rule_file" | tail -n +1
       } > "$inst_file"
 
+      translate_tasuki_paths "copilot" "$inst_file"
+
       log_dim "    instructions/$name.instructions.md"
     done
-  fi
-
-  # 3. AGENTS.md for Copilot agent mode
-  if [ ! -f "$project_dir/.github/AGENTS.md" ]; then
-    if [ -f "$project_dir/TASUKI.md" ]; then
-      cp "$project_dir/TASUKI.md" "$project_dir/.github/AGENTS.md"
-      log_dim "    .github/AGENTS.md"
-    fi
   fi
 
   log_success "  Copilot: instructions + $(find "$github_dir" -name "*.md" 2>/dev/null | wc -l) path rules"

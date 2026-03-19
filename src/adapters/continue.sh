@@ -76,6 +76,8 @@ generate_config() {
         sed -n '/^---$/,/^---$/!p' "$agent_file" | tail -n +1
       } > "$continue_rule"
 
+      translate_tasuki_paths "continue" "$continue_rule"
+
       log_dim "    $(printf '%02d' $idx)-agent-$name.md"
       idx=$((idx + 1))
     done

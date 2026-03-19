@@ -28,6 +28,7 @@ generate_config() {
       name=$(basename "$agent_file")
       [ "$name" = "onboard.md" ] && continue
       cp "$agent_file" "$roo_dir/agent-$name"
+      translate_tasuki_paths "roocode" "$roo_dir/agent-$name"
       log_dim "    rules/agent-$name"
     done
   fi
@@ -51,7 +52,10 @@ generate_config() {
         first=false
         echo "    {"
         echo "      \"slug\": \"$name\","
-        echo "      \"name\": \"$(echo "$name" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')\","
+        # Capitalize words (awk is portable, sed \u is GNU-only)
+        local display_name
+        display_name=$(echo "$name" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+        echo "      \"name\": \"$display_name\","
         echo "      \"instructions\": \"$desc\""
         echo -n "    }"
       done

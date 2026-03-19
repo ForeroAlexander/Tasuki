@@ -33,6 +33,19 @@ onboard_project() {
   fi
   echo ""
 
+  # Check for Python3 — required for dashboard, vault, hooks, Agent Teams config
+  if ! command -v python3 &>/dev/null; then
+    echo -e "  ${YELLOW}${BOLD}⚠  Python3 not found${NC}"
+    echo -e "  ${DIM}The following features will be disabled:${NC}"
+    echo -e "  ${DIM}  • Dashboard (tasuki dashboard)${NC}"
+    echo -e "  ${DIM}  • Memory vault (graph expansion, decay, RAG sync)${NC}"
+    echo -e "  ${DIM}  • Advanced hooks (security-check JSON parsing)${NC}"
+    echo -e "  ${DIM}  • Agent Teams config (settings.local.json)${NC}"
+    echo ""
+    echo -e "  ${DIM}Install: brew install python3  |  apt install python3${NC}"
+    echo ""
+  fi
+
   # Phase 1: Detection
   run_detection "$project_dir"
 
@@ -296,10 +309,24 @@ write_ai_hooks() {
   local claude_settings="$project_dir/.claude/settings.local.json"
   if command -v python3 &>/dev/null; then
     mkdir -p "$project_dir/.claude"
+
+    # Check if Agent Teams should be enabled
+    local agent_teams_enabled="false"
+    if [ "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" = "1" ]; then
+      agent_teams_enabled="true"
+    fi
+    # Also check if user answered yes during interview
+    if [ -f "$project_dir/.tasuki/config/agent-teams" ]; then
+      agent_teams_enabled="true"
+    fi
+
     python3 -c "
 import json, os
 
 f = '$claude_settings'
+agent_teams = '$agent_teams_enabled' == 'true'
+project_dir = '$project_dir'
+
 data = {}
 if os.path.exists(f):
     with open(f) as fh:
@@ -320,34 +347,71 @@ for p in tasuki_perms:
 # Write hooks
 hooks = data.setdefault('hooks', {})
 
-# PreToolUse — pipeline tracker on all tools
-pre = hooks.setdefault('PreToolUse', [])
-tracker_entry = {
-    'matcher': 'Read|Edit|Write|Bash|Agent|Glob|Grep',
-    'hooks': [{'type': 'command', 'command': '$project_dir/.tasuki/hooks/pipeline-tracker.sh'}]
-}
-edit_hooks = {
-    'matcher': 'Edit|Write',
-    'hooks': [
-        {'type': 'command', 'command': '$project_dir/.tasuki/hooks/protect-files.sh'},
-        {'type': 'command', 'command': '$project_dir/.tasuki/hooks/security-check.sh'},
-        {'type': 'command', 'command': '$project_dir/.tasuki/hooks/tdd-guard.sh'},
-        {'type': 'command', 'command': '$project_dir/.tasuki/hooks/force-agent-read.sh'},
-        {'type': 'command', 'command': '$project_dir/.tasuki/hooks/force-planner-first.sh'}
-    ]
-}
-# Clear old hook entries and write fresh
-hooks['PreToolUse'] = [tracker_entry, edit_hooks]
+if agent_teams:
+    # Agent Teams mode: only mechanical hooks (security, TDD, file protection)
+    # Skip: pipeline-tracker, pipeline-trigger, force-planner-first
+    # (Agent Teams handles orchestration natively)
+    env = data.setdefault('env', {})
+    env['CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS'] = '1'
 
-# UserPromptSubmit — pipeline trigger
-hooks['UserPromptSubmit'] = [{
-    'hooks': [{'type': 'command', 'command': '$project_dir/.tasuki/hooks/pipeline-trigger.sh'}]
-}]
+    edit_hooks = {
+        'matcher': 'Edit|Write',
+        'hooks': [
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/protect-files.sh'},
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/security-check.sh'},
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/tdd-guard.sh'},
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/force-agent-read.sh'}
+        ]
+    }
+    hooks['PreToolUse'] = [edit_hooks]
+    # No UserPromptSubmit — team lead orchestrates directly
+    hooks.pop('UserPromptSubmit', None)
+
+    hooks['TeammateIdle'] = [{
+        'hooks': [{
+            'type': 'command',
+            'command': f'{project_dir}/.tasuki/hooks/teammate-idle.sh'
+        }]
+    }]
+    hooks['TaskCompleted'] = [{
+        'hooks': [{
+            'type': 'command',
+            'command': f'{project_dir}/.tasuki/hooks/task-completed.sh'
+        }]
+    }]
+else:
+    # Legacy mode: full orchestration hooks (needed for Cursor, Codex, etc.)
+    tracker_entry = {
+        'matcher': 'Read|Edit|Write|Bash|Agent|Glob|Grep',
+        'hooks': [{'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/pipeline-tracker.sh'}]
+    }
+    edit_hooks = {
+        'matcher': 'Edit|Write',
+        'hooks': [
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/protect-files.sh'},
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/security-check.sh'},
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/tdd-guard.sh'},
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/force-agent-read.sh'},
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/force-planner-first.sh'}
+        ]
+    }
+    hooks['PreToolUse'] = [tracker_entry, edit_hooks]
+    hooks.pop('TeammateIdle', None)
+    hooks.pop('TaskCompleted', None)
+
+    hooks['UserPromptSubmit'] = [{
+        'hooks': [{'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/pipeline-trigger.sh'}]
+    }]
 
 with open(f, 'w') as fh:
     json.dump(data, fh, indent=2)
 " 2>/dev/null
-    log_dim "  Hooks written to .claude/settings.local.json"
+
+    if [ "$agent_teams_enabled" = "true" ]; then
+      log_dim "  Hooks written to .claude/settings.local.json (Agent Teams mode)"
+    else
+      log_dim "  Hooks written to .claude/settings.local.json"
+    fi
   fi
 }
 
@@ -420,6 +484,8 @@ print_dry_run_preview() {
   echo -e "    ${GREEN}+${NC} pipeline-trigger.sh"
   echo -e "    ${GREEN}+${NC} force-agent-read.sh"
   echo -e "    ${GREEN}+${NC} force-planner-first.sh"
+  echo -e "    ${GREEN}+${NC} teammate-idle.sh ${DIM}(Agent Teams)${NC}"
+  echo -e "    ${GREEN}+${NC} task-completed.sh ${DIM}(Agent Teams)${NC}"
   echo ""
 
   # Skills
@@ -556,7 +622,9 @@ print_onboard_summary() {
   [ "${DETECTED[database_detected]}" = "true" ] && stack="$stack + ${DETECTED[database_engine]}"
   echo -e "  ${BOLD}Stack:${NC}    $stack"
   echo -e "  ${BOLD}Profile:${NC}  $(basename "$MATCHED_PROFILE" .yaml)"
-  echo -e "  ${BOLD}Mode:${NC}     standard"
+  local current_mode="standard"
+  [ -f "$project_dir/.tasuki/config/mode" ] && current_mode=$(cat "$project_dir/.tasuki/config/mode" 2>/dev/null)
+  echo -e "  ${BOLD}Mode:${NC}     $current_mode"
   echo ""
 
   echo -e "  ${BOLD}Detection:${NC}"
@@ -597,46 +665,170 @@ print_onboard_summary() {
   echo -e "    TASUKI.md             — orchestration brain"
   echo ""
 
-  echo -e "  ${BOLD}Execution mode:${NC} standard (change with ${CYAN}tasuki mode [fast|serious|auto]${NC})"
+  echo -e "  ${BOLD}Execution mode:${NC} $current_mode (change with ${CYAN}tasuki mode [fast|standard|serious]${NC})"
+
+  # Agent Teams status
+  local agent_teams_active="false"
+  if [ "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" = "1" ] || [ -f "$project_dir/.tasuki/config/agent-teams" ]; then
+    agent_teams_active="true"
+  fi
+  if [ "$agent_teams_active" = "true" ]; then
+    echo -e "  ${BOLD}Orchestration:${NC} ${GREEN}Agent Teams${NC} (real multi-agent with separate contexts)"
+  else
+    echo -e "  ${BOLD}Orchestration:${NC} Sequential pipeline (single context)"
+    echo -e "    ${DIM}Enable Agent Teams: ${CYAN}export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1${NC} ${DIM}then re-onboard${NC}"
+  fi
   echo ""
 
   # Plugin recommendations
   print_recommendations
 
-  # Cleanup suggestion
-  print_cleanup_suggestion
+  # Cleanup — interactive removal of unused components
+  print_cleanup_suggestion "$project_dir"
 
   echo -e "  ${GREEN}Ready to test?${NC} Try: \"Plan a small feature to verify the pipeline\""
   echo ""
 }
 
 print_cleanup_suggestion() {
-  local unused=()
+  local project_dir="${1:-.}"
+  local claude_dir="$project_dir/.tasuki"
 
-  # Check for agents/skills that might not be needed
-  if [ "${DETECTED[frontend_detected]}" != "true" ] && [ -f "${DETECTED[project_dir]}/.tasuki/agents/frontend-dev.md" ]; then
-    unused+=("frontend-dev agent")
+  # Collect unused items (reuses DETECTED[] from onboard — no re-scan needed)
+  local items=()
+  local item_paths=()
+  local item_types=()
+
+  # Agents — check conditional agents against detection
+  if [ "${DETECTED[frontend_detected]}" != "true" ] && [ -f "$claude_dir/agents/frontend-dev.md" ]; then
+    items+=("frontend-dev agent ${DIM}(no frontend detected)${NC}")
+    item_paths+=("$claude_dir/agents/frontend-dev.md")
+    item_types+=("file")
   fi
-  if [ "${DETECTED[backend_detected]}" != "true" ] && [ -f "${DETECTED[project_dir]}/.tasuki/agents/backend-dev.md" ]; then
-    unused+=("backend-dev agent")
+  if [ "${DETECTED[backend_detected]}" != "true" ] && [ -f "$claude_dir/agents/backend-dev.md" ]; then
+    items+=("backend-dev agent ${DIM}(no backend detected)${NC}")
+    item_paths+=("$claude_dir/agents/backend-dev.md")
+    item_types+=("file")
   fi
-  if [ "${DETECTED[database_detected]}" != "true" ] && [ -f "${DETECTED[project_dir]}/.tasuki/agents/db-architect.md" ]; then
-    unused+=("db-architect agent")
+  if [ "${DETECTED[database_detected]}" != "true" ] && [ -f "$claude_dir/agents/db-architect.md" ]; then
+    items+=("db-architect agent ${DIM}(no database detected)${NC}")
+    item_paths+=("$claude_dir/agents/db-architect.md")
+    item_types+=("file")
   fi
-  if [ "${DETECTED[frontend_detected]}" != "true" ] && [ -d "${DETECTED[project_dir]}/.tasuki/skills/ui-design" ]; then
-    unused+=("ui-design skill")
+  if [ "${DETECTED[infra_detected]}" != "true" ] && [ -f "$claude_dir/agents/devops.md" ]; then
+    items+=("devops agent ${DIM}(no infra detected)${NC}")
+    item_paths+=("$claude_dir/agents/devops.md")
+    item_types+=("file")
   fi
 
-  if [ ${#unused[@]} -gt 0 ]; then
-    echo -e "  ${YELLOW}${BOLD}Unused components detected:${NC}"
-    for item in "${unused[@]}"; do
-      echo -e "    ${DIM}- $item${NC}"
+  # Skills
+  if [ "${DETECTED[frontend_detected]}" != "true" ]; then
+    for skill in ui-design ui-ux-pro-max; do
+      if [ -d "$claude_dir/skills/$skill" ]; then
+        items+=("$skill skill ${DIM}(no frontend detected)${NC}")
+        item_paths+=("$claude_dir/skills/$skill")
+        item_types+=("dir")
+      fi
     done
-    echo -e "    ${DIM}These were kept in case you need them later.${NC}"
+  fi
+  if [ "${DETECTED[database_detected]}" != "true" ] && [ -d "$claude_dir/skills/db-migrate" ]; then
+    items+=("db-migrate skill ${DIM}(no database detected)${NC}")
+    item_paths+=("$claude_dir/skills/db-migrate")
+    item_types+=("dir")
+  fi
+  if [ "${DETECTED[infra_detected]}" != "true" ] && [ -d "$claude_dir/skills/deploy-check" ]; then
+    items+=("deploy-check skill ${DIM}(no infra detected)${NC}")
+    item_paths+=("$claude_dir/skills/deploy-check")
+    item_types+=("dir")
+  fi
+
+  # Rules
+  if [ "${DETECTED[frontend_detected]}" != "true" ] && [ -f "$claude_dir/rules/frontend.md" ]; then
+    items+=("frontend.md rule ${DIM}(no frontend detected)${NC}")
+    item_paths+=("$claude_dir/rules/frontend.md")
+    item_types+=("file")
+  fi
+  if [ "${DETECTED[backend_detected]}" != "true" ]; then
+    for rule in backend.md models.md; do
+      if [ -f "$claude_dir/rules/$rule" ]; then
+        items+=("$rule rule ${DIM}(no backend detected)${NC}")
+        item_paths+=("$claude_dir/rules/$rule")
+        item_types+=("file")
+      fi
+    done
+  fi
+  if [ "${DETECTED[database_detected]}" != "true" ] && [ -f "$claude_dir/rules/migrations.md" ]; then
+    items+=("migrations.md rule ${DIM}(no database detected)${NC}")
+    item_paths+=("$claude_dir/rules/migrations.md")
+    item_types+=("file")
+  fi
+
+  # Nothing to clean
+  if [ ${#items[@]} -eq 0 ]; then
+    return 0
+  fi
+
+  echo -e "  ${YELLOW}${BOLD}Unused components (${#items[@]}):${NC}"
+  local i
+  for i in $(seq 0 $((${#items[@]} - 1))); do
+    echo -e "    ${YELLOW}$((i + 1)).${NC} ${items[$i]}"
+  done
+  echo ""
+
+  # Interactive cleanup — only if terminal is available
+  if [ -t 0 ]; then
+    echo -e "  ${BOLD}Options:${NC}"
+    echo -e "    ${CYAN}all${NC}     — Remove all unused components"
+    echo -e "    ${CYAN}1,3,5${NC}   — Remove specific items (comma-separated)"
+    echo -e "    ${CYAN}Enter${NC}   — Keep everything"
+    echo ""
+    echo -en "  ${BOLD}Remove:${NC} "
+    read -r cleanup_choice
+
+    case "$cleanup_choice" in
+      ""|none|n)
+        log_dim "  Kept all components. Run ${CYAN}tasuki cleanup${NC} later to remove."
+        ;;
+      all|a)
+        local removed=0
+        for i in $(seq 0 $((${#items[@]} - 1))); do
+          if [ "${item_types[$i]}" = "dir" ]; then
+            rm -rf "${item_paths[$i]}"
+          else
+            rm -f "${item_paths[$i]}"
+          fi
+          removed=$((removed + 1))
+        done
+        log_success "  Removed $removed unused components."
+        echo -e "    Run ${CYAN}tasuki restore${NC} to bring anything back."
+        ;;
+      *)
+        local removed=0
+        IFS=',' read -ra selections <<< "$cleanup_choice"
+        for sel in "${selections[@]}"; do
+          sel=$(echo "$sel" | tr -d ' ')
+          local idx=$((sel - 1))
+          if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#items[@]}" ]; then
+            if [ "${item_types[$idx]}" = "dir" ]; then
+              rm -rf "${item_paths[$idx]}"
+            else
+              rm -f "${item_paths[$idx]}"
+            fi
+            removed=$((removed + 1))
+          fi
+        done
+        if [ "$removed" -gt 0 ]; then
+          log_success "  Removed $removed components."
+          echo -e "    Run ${CYAN}tasuki restore${NC} to bring anything back."
+        fi
+        ;;
+    esac
+  else
+    # Non-interactive: just suggest the command
     echo -e "    Run ${CYAN}tasuki cleanup${NC} to remove what you don't need."
     echo -e "    Run ${CYAN}tasuki restore${NC} to bring anything back."
-    echo ""
   fi
+  echo ""
 }
 
 print_recommendations() {

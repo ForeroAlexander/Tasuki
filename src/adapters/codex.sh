@@ -1,32 +1,16 @@
 #!/bin/bash
 # Tasuki Adapter — OpenAI Codex CLI
-# Output: AGENTS.md + .codex/skills/
+# Output: AGENTS.md
 
 generate_config() {
   local project_dir="$1"
-  local codex_dir="$project_dir/.codex"
-  mkdir -p "$codex_dir/skills"
 
   log_dim "  Generating Codex config..."
 
-  # 1. AGENTS.md — main instruction file (Codex reads this)
+  # AGENTS.md — main instruction file (Codex reads this from project root)
   generate_agents_md "$project_dir"
 
-  # 2. Skills directory
-  if [ -d "$project_dir/.tasuki/skills" ]; then
-    for skill_dir in "$project_dir/.tasuki/skills"/*/; do
-      [ -d "$skill_dir" ] || continue
-      local name
-      name=$(basename "$skill_dir")
-      if [ -f "$skill_dir/SKILL.md" ]; then
-        mkdir -p "$codex_dir/skills/$name"
-        cp "$skill_dir/SKILL.md" "$codex_dir/skills/$name/SKILL.md"
-        log_dim "    skills/$name"
-      fi
-    done
-  fi
-
-  log_success "  Codex: AGENTS.md + $(find "$codex_dir/skills" -name "*.md" 2>/dev/null | wc -l) skills"
+  log_success "  Codex: AGENTS.md generated"
 }
 
 generate_agents_md() {
@@ -61,9 +45,11 @@ generate_agents_md() {
     fi
   } > "$output"
 
+  translate_tasuki_paths "codex" "$output"
+
   log_dim "    AGENTS.md"
 }
 
 get_adapter_info() {
-  echo "codex|AGENTS.md + .codex/skills/|OpenAI Codex CLI"
+  echo "codex|AGENTS.md|OpenAI Codex CLI"
 }

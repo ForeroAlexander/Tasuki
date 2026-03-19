@@ -219,6 +219,37 @@ if [ -z "$lang" ] && [ -f "$PROJECT_DIR/Cargo.toml" ]; then
   fi
 fi
 
+# --- Bash (CLI tools, scripts) ---
+if [ -z "$lang" ]; then
+  # Look for bin/ with shell scripts or a main CLI entry point
+  bash_entry=""
+  for candidate in "$PROJECT_DIR/bin/"* "$PROJECT_DIR/cli/"* "$PROJECT_DIR/src/cli"*; do
+    if [ -f "$candidate" ] && head -1 "$candidate" 2>/dev/null | grep -q "bash\|#!/bin/sh"; then
+      bash_entry="$candidate"
+      break
+    fi
+  done
+  if [ -n "$bash_entry" ]; then
+    sh_count=0
+    for _sd in "$PROJECT_DIR/src" "$PROJECT_DIR/bin" "$PROJECT_DIR/lib"; do
+      [ -d "$_sd" ] && sh_count=$((sh_count + $(find "$_sd" -name "*.sh" 2>/dev/null | wc -l)))
+    done
+    if [ "$sh_count" -gt 5 ]; then
+      lang="bash"
+      framework="cli"
+      entry="$bash_entry"
+      # Check package.json for npm distribution
+      [ -f "$PROJECT_DIR/package.json" ] && package_manager="npm"
+      # Check if it also uses Python modules
+      py_count=0
+      [ -d "$PROJECT_DIR/src" ] && py_count=$(find "$PROJECT_DIR/src" -name "*.py" 2>/dev/null | wc -l)
+      if [ "$py_count" -gt 0 ]; then
+        framework="cli-hybrid"
+      fi
+    fi
+  fi
+fi
+
 # Count routers/controllers/handlers
 router_count=0
 model_count=0
@@ -237,6 +268,11 @@ if [ -n "$lang" ]; then
     go)
       router_count=$(find "$PROJECT_DIR" -name "*.go" -path "*handler*" -o -name "*.go" -path "*controller*" 2>/dev/null | wc -l)
       model_count=$(find "$PROJECT_DIR" -name "*.go" -path "*model*" 2>/dev/null | wc -l)
+      ;;
+    bash)
+      [ -d "$PROJECT_DIR/src" ] && router_count=$(find "$PROJECT_DIR/src" -name "*.sh" 2>/dev/null | wc -l)
+      [ -d "$PROJECT_DIR/src" ] && model_count=$(find "$PROJECT_DIR/src" -name "*.py" 2>/dev/null | wc -l)
+      [ -d "$PROJECT_DIR/src" ] && service_count=$(find "$PROJECT_DIR/src" -name "*.yaml" -o -name "*.md" 2>/dev/null | wc -l)
       ;;
   esac
 fi

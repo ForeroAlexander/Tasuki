@@ -340,13 +340,16 @@ build_mcp_table() {
 }
 
 build_hooks_list() {
-  echo "- **protect-files.sh** (PreToolUse: Edit|Write): Blocks edits to sensitive files (.env, secrets/, lock files)
+  local list="- **protect-files.sh** (PreToolUse: Edit|Write): Blocks edits to sensitive files (.env, secrets/, lock files)
 - **security-check.sh** (PreToolUse: Edit|Write): Scans for security anti-patterns (SQL injection, hardcoded secrets, unsafe functions)
 - **tdd-guard.sh** (PreToolUse: Edit|Write): Blocks implementation code if tests don't exist yet (TDD enforcement)
 - **pipeline-tracker.sh** (PostToolUse): Tracks pipeline stage transitions and logs agent activity
 - **pipeline-trigger.sh** (UserPromptSubmit): Activates the pipeline when user says 'tasuki' in their prompt
 - **force-agent-read.sh** (PreToolUse): Forces agents to read their agent file before acting
-- **force-planner-first.sh** (PreToolUse): Ensures the planner agent runs before any implementation agents"
+- **force-planner-first.sh** (PreToolUse): Ensures the planner agent runs before any implementation agents
+- **teammate-idle.sh** (TeammateIdle): Quality gate — runs tests and security checks before a teammate can go idle (Agent Teams)
+- **task-completed.sh** (TaskCompleted): Validates acceptance criteria before marking a task done (Agent Teams)"
+  echo "$list"
 }
 
 is_agent_active() {
@@ -548,21 +551,23 @@ render_rules() {
 render_hooks() {
   local claude_dir="$1"
 
-  cp "$TASUKI_TEMPLATES/hooks/protect-files.sh" "$claude_dir/hooks/"
-  cp "$TASUKI_TEMPLATES/hooks/security-check.sh" "$claude_dir/hooks/"
-  cp "$TASUKI_TEMPLATES/hooks/tdd-guard.sh" "$claude_dir/hooks/"
-  cp "$TASUKI_TEMPLATES/hooks/pipeline-tracker.sh" "$claude_dir/hooks/"
-  cp "$TASUKI_TEMPLATES/hooks/pipeline-trigger.sh" "$claude_dir/hooks/"
-  cp "$TASUKI_TEMPLATES/hooks/force-agent-read.sh" "$claude_dir/hooks/"
-  cp "$TASUKI_TEMPLATES/hooks/force-planner-first.sh" "$claude_dir/hooks/"
+  # Core hooks (always installed)
+  local core_hooks=("protect-files" "security-check" "tdd-guard" "pipeline-tracker" "pipeline-trigger" "force-agent-read" "force-planner-first")
+  for hook in "${core_hooks[@]}"; do
+    cp "$TASUKI_TEMPLATES/hooks/${hook}.sh" "$claude_dir/hooks/"
+    log_dim "  ${hook}.sh"
+  done
+
+  # Agent Teams hooks (always copy — activated only when Agent Teams is enabled)
+  local team_hooks=("teammate-idle" "task-completed")
+  for hook in "${team_hooks[@]}"; do
+    if [ -f "$TASUKI_TEMPLATES/hooks/${hook}.sh" ]; then
+      cp "$TASUKI_TEMPLATES/hooks/${hook}.sh" "$claude_dir/hooks/"
+      log_dim "  ${hook}.sh (Agent Teams)"
+    fi
+  done
+
   chmod +x "$claude_dir/hooks/"*.sh
-  log_dim "  protect-files.sh"
-  log_dim "  security-check.sh"
-  log_dim "  tdd-guard.sh"
-  log_dim "  pipeline-tracker.sh"
-  log_dim "  pipeline-trigger.sh"
-  log_dim "  force-agent-read.sh"
-  log_dim "  force-planner-first.sh"
 }
 
 render_skills() {

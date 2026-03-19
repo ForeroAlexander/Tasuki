@@ -36,7 +36,7 @@ fi
 # Extract file path being edited
 FILE_PATH=""
 if [ -n "$INPUT" ]; then
-  FILE_PATH=$(echo "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
+  FILE_PATH=$(printf '%s\n' "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
 fi
 
 [ -z "$FILE_PATH" ] && exit 0
@@ -66,23 +66,25 @@ case "$FILE_PATH" in
     exit 0 ;;
 esac
 
-# --- Check if a plan exists ---
+# --- Check if a plan exists for the CURRENT task ---
 PLAN_EXISTS=false
 
-if [ -d "$PLANS_DIR" ]; then
-  # Look for any prd.md, plan.md, or status.md in subdirectories
-  PLAN_COUNT=$(find "$PLANS_DIR" -name "prd.md" -o -name "plan.md" -o -name "status.md" 2>/dev/null | head -1)
-  if [ -n "$PLAN_COUNT" ]; then
-    PLAN_EXISTS=true
-  fi
-fi
-
-# Also check progress — if Planner stage is done, allow
 PROGRESS_FILE="$PROJECT_DIR/.tasuki/config/pipeline-progress.json"
 if [ -f "$PROGRESS_FILE" ]; then
+  # Check if Planner stage ran in the current pipeline
   if grep -q '"Planner"' "$PROGRESS_FILE" 2>/dev/null; then
     PLAN_EXISTS=true
   fi
+
+  # Also check: if current_stage > 1, Planner already passed
+  CURRENT_STAGE=$(grep -oP '"current_stage"\s*:\s*\K[0-9]+' "$PROGRESS_FILE" 2>/dev/null || echo "0")
+  [ "$CURRENT_STAGE" -gt 1 ] 2>/dev/null && PLAN_EXISTS=true
+fi
+
+# Fallback: check if a plan was modified in the last 2 hours (active work)
+if [ "$PLAN_EXISTS" = false ] && [ -d "$PLANS_DIR" ]; then
+  RECENT_PLAN=$(find "$PLANS_DIR" -name "prd.md" -mmin -120 2>/dev/null | head -1)
+  [ -n "$RECENT_PLAN" ] && PLAN_EXISTS=true
 fi
 
 if [ "$PLAN_EXISTS" = false ]; then
@@ -99,15 +101,13 @@ if [ "$PLAN_EXISTS" = false ]; then
   # Log to activity
   ACTIVITY_FILE="$PROJECT_DIR/.tasuki/config/activity-log.json"
   if [ -f "$ACTIVITY_FILE" ] && command -v python3 &>/dev/null; then
-    python3 -c "
-import json
-try:
-    with open('$ACTIVITY_FILE') as f: data = json.load(f)
-    data['events'].append({'time':'$(date "+%Y-%m-%d %H:%M:%S")','type':'hook_blocked','agent':'force-planner-first','detail':'Blocked edit — no plan exists yet'})
-    data['events'] = data['events'][-100:]
-    with open('$ACTIVITY_FILE','w') as f: json.dump(data, f, indent=2)
-except: pass
-" 2>/dev/null
+    logger=""
+    for candidate in \
+      "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../src/engine/hook_logger.py" \
+      "$(dirname "$(readlink -f "$(command -v tasuki)" 2>/dev/null)")/../src/engine/hook_logger.py"; do
+      [ -f "$candidate" ] && logger="$candidate" && break
+    done 2>/dev/null
+    [ -n "$logger" ] && python3 "$logger" "$ACTIVITY_FILE" "$(date "+%Y-%m-%d %H:%M:%S")" "force-planner-first" "Blocked edit — no plan exists yet"
   fi
   exit 2
 fi

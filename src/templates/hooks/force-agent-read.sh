@@ -30,7 +30,7 @@ fi
 # Extract file path being edited
 FILE_PATH=""
 if [ -n "$INPUT" ]; then
-  FILE_PATH=$(echo "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
+  FILE_PATH=$(printf '%s\n' "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
 fi
 
 [ -z "$FILE_PATH" ] && exit 0
@@ -91,15 +91,13 @@ if [ "$AGENT_READ" = false ]; then
   # Log to activity
   ACTIVITY_FILE="$PROJECT_DIR/.tasuki/config/activity-log.json"
   if [ -f "$ACTIVITY_FILE" ] && command -v python3 &>/dev/null; then
-    python3 -c "
-import json
-try:
-    with open('$ACTIVITY_FILE') as f: data = json.load(f)
-    data['events'].append({'time':'$(date "+%Y-%m-%d %H:%M:%S")','type':'hook_blocked','agent':'force-agent-read','detail':'Blocked edit — no agent file read yet'})
-    data['events'] = data['events'][-100:]
-    with open('$ACTIVITY_FILE','w') as f: json.dump(data, f, indent=2)
-except: pass
-" 2>/dev/null
+    logger=""
+    for candidate in \
+      "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../src/engine/hook_logger.py" \
+      "$(dirname "$(readlink -f "$(command -v tasuki)" 2>/dev/null)")/../src/engine/hook_logger.py"; do
+      [ -f "$candidate" ] && logger="$candidate" && break
+    done 2>/dev/null
+    [ -n "$logger" ] && python3 "$logger" "$ACTIVITY_FILE" "$(date "+%Y-%m-%d %H:%M:%S")" "force-agent-read" "Blocked edit — no agent file read yet"
   fi
   exit 2
 fi

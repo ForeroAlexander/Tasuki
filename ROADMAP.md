@@ -68,11 +68,20 @@ When `vault pull` creates `-team` duplicates, a simple web UI (like the dashboar
 
 ---
 
+## Recently shipped
+
+| Feature | Version | Details |
+|---------|---------|---------|
+| **Agent Teams** | v1.0.16 | Claude Code agents run as real teammates with separate context windows, per-agent model selection, and shared task lists. Enabled automatically on `tasuki onboard .` |
+| **Path translation** | v1.0.16 | All adapters translate `.tasuki/` paths to the target's equivalents. Hooks include a note that they only run in Claude Code |
+| **TeammateIdle / TaskCompleted hooks** | v1.0.16 | Quality gates for Agent Teams — tests + security before idle, acceptance criteria before task completion |
+
+---
+
 ## Not planned (and why)
 
 | Feature | Why not |
 |---------|---------|
-| Parallel agents | Sequential pipeline is intentional — TDD requires order |
 | SaaS/paid tier | Tasuki is free and open source by design |
 | Custom LLM training | Tasuki configures existing models, doesn't train new ones |
 | VS Code extension | The CLI + hooks approach works across all tools already |

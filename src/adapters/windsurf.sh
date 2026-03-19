@@ -44,6 +44,8 @@ generate_config() {
     fi
   } > "$output"
 
+  translate_tasuki_paths "windsurf" "$output"
+
   log_success "  Windsurf: .windsurfrules ($(wc -l < "$output") lines)"
 }
 

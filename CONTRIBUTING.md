@@ -70,9 +70,11 @@ src/
    }
    ```
 3. Add to `ALL_TARGETS` in `src/adapters/base.sh`
-4. Add model mappings in `src/adapters/models.yaml`
-5. Add CLI dispatch in `bin/tasuki`
-6. Run tests
+4. Add your tool's path mappings to `translate_tasuki_paths()` in `src/adapters/base.sh`
+5. Call `translate_tasuki_paths "your-tool" "$file"` after generating each output file — this translates `.tasuki/` paths and Claude-specific references to your tool's equivalents
+6. Add model mappings in `src/adapters/model-map.sh`
+7. Add CLI dispatch in `bin/tasuki`
+8. Run tests
 
 ## Adding a New Agent
 
@@ -118,6 +120,12 @@ src/
 2. Must exit 0 (allow) or 2 (block with message)
 3. Add to `render_hooks()` in `src/engine/render.sh`
 4. Add to `settings.json` template in the hooks section
+
+**Hook events available:**
+- `PreToolUse` (matcher: `Edit|Write`, `Read|Edit|Write|Bash|...`) — runs before a tool executes
+- `UserPromptSubmit` — runs when the user submits a prompt
+- `TeammateIdle` — Agent Teams only, runs before a teammate goes idle
+- `TaskCompleted` — Agent Teams only, runs before a task is marked done
 
 ## Running Tests
 

@@ -94,12 +94,75 @@ extract_conventions() {
     fi
   done
 
-  # Extract tools
-  CONVENTIONS[test_runner]=$(extract_yaml_value "$MATCHED_PROFILE" "test_runner")
-  CONVENTIONS[scanner]=$(extract_yaml_value "$MATCHED_PROFILE" "scanner")
-  CONVENTIONS[linter]=$(extract_yaml_value "$MATCHED_PROFILE" "linter")
-  CONVENTIONS[formatter]=$(extract_yaml_value "$MATCHED_PROFILE" "formatter")
-  CONVENTIONS[migration_cmd]=$(extract_yaml_value "$MATCHED_PROFILE" "migration_cmd")
+  # Derive tools from detectors (not from profile — detectors are the source of truth)
+  local backend_runner="${DETECTED[testing_backend_runner]:-none}"
+  case "$backend_runner" in
+    pytest)   CONVENTIONS[test_runner]="python3 -m pytest" ;;
+    unittest) CONVENTIONS[test_runner]="python3 -m unittest discover" ;;
+    jest)     CONVENTIONS[test_runner]="npx jest" ;;
+    vitest)   CONVENTIONS[test_runner]="npx vitest" ;;
+    mocha)    CONVENTIONS[test_runner]="npx mocha" ;;
+    go-test)  CONVENTIONS[test_runner]="go test ./..." ;;
+    rspec)    CONVENTIONS[test_runner]="bundle exec rspec" ;;
+    junit)    CONVENTIONS[test_runner]="mvn test" ;;
+    *)        CONVENTIONS[test_runner]="echo 'test runner not configured'" ;;
+  esac
+
+  local migration_tool="${DETECTED[database_migration_tool]:-none}"
+  case "$migration_tool" in
+    alembic)           CONVENTIONS[migration_cmd]="alembic" ;;
+    django-migrations) CONVENTIONS[migration_cmd]="python3 manage.py migrate" ;;
+    prisma-migrate)    CONVENTIONS[migration_cmd]="npx prisma migrate" ;;
+    knex)              CONVENTIONS[migration_cmd]="npx knex migrate:latest" ;;
+    rails-migrations)  CONVENTIONS[migration_cmd]="rails db:migrate" ;;
+    golang-migrate)    CONVENTIONS[migration_cmd]="migrate" ;;
+    *)                 CONVENTIONS[migration_cmd]="" ;;
+  esac
+
+  # Scanner/linter/formatter — detect from project config files
+  local lang="${DETECTED[backend_lang]:-}"
+  case "$lang" in
+    python)
+      CONVENTIONS[scanner]="bandit"
+      CONVENTIONS[linter]="ruff"
+      CONVENTIONS[formatter]="ruff format"
+      ;;
+    typescript|javascript)
+      CONVENTIONS[scanner]=""
+      CONVENTIONS[linter]="eslint"
+      CONVENTIONS[formatter]="prettier"
+      ;;
+    go)
+      CONVENTIONS[scanner]=""
+      CONVENTIONS[linter]="golangci-lint"
+      CONVENTIONS[formatter]="gofmt"
+      ;;
+    ruby)
+      CONVENTIONS[scanner]="brakeman"
+      CONVENTIONS[linter]="rubocop"
+      CONVENTIONS[formatter]="rubocop -A"
+      ;;
+    java)
+      CONVENTIONS[scanner]="spotbugs"
+      CONVENTIONS[linter]="checkstyle"
+      CONVENTIONS[formatter]=""
+      ;;
+    php)
+      CONVENTIONS[scanner]="phpstan"
+      CONVENTIONS[linter]="phpcs"
+      CONVENTIONS[formatter]="php-cs-fixer"
+      ;;
+    bash)
+      CONVENTIONS[scanner]="shellcheck"
+      CONVENTIONS[linter]="shellcheck"
+      CONVENTIONS[formatter]=""
+      ;;
+    *)
+      CONVENTIONS[scanner]=""
+      CONVENTIONS[linter]=""
+      CONVENTIONS[formatter]=""
+      ;;
+  esac
 
   log_success "  Extracted conventions for: ${!CONVENTIONS[*]}"
   echo ""

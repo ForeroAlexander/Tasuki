@@ -174,6 +174,19 @@ run_interview() {
     read -r deploy_target
   fi
 
+  # --- Execution Preferences ---
+  echo ""
+  echo -e "${BOLD}Execution:${NC}"
+
+  echo -e "  ${DIM}Modes: fast (bug fixes, 3 agents) / standard (features, 5 agents) / serious (critical, all 9)${NC}"
+  echo -en "  Default execution mode? (fast/standard/serious, Enter=standard): "
+  read -r exec_mode
+  exec_mode="${exec_mode:-standard}"
+
+  echo -en "  Team size? (solo/small/large, Enter=solo): "
+  read -r team_size
+  team_size="${team_size:-solo}"
+
   # --- Team Conventions ---
   echo ""
   echo -e "${BOLD}Conventions:${NC}"
@@ -183,6 +196,9 @@ run_interview() {
 
   echo -en "  Commit format (conventional, freeform): "
   read -r conventions
+
+  echo -en "  Any files to protect from AI edits? (e.g., config/prod.yaml, .env.production): "
+  read -r protected_files
 
   echo -en "  Any specific rules agents should follow? (Enter=none): "
   read -r custom_rules
@@ -196,65 +212,107 @@ run_interview() {
 
     if [ -n "$business" ]; then
       echo "## What This Project Does"
-      echo "$business"
+      printf '%s\n' "$business"
       echo ""
     fi
 
     if [ -n "$domain" ]; then
       echo "## Domain"
-      echo "$domain"
+      printf '%s\n' "$domain"
       echo ""
     fi
 
     if [ -n "$users" ]; then
       echo "## Users"
-      echo "$users"
+      printf '%s\n' "$users"
       echo ""
     fi
 
     if [ -n "$correct_stack" ]; then
       echo "## Stack (corrected by user)"
-      echo "$correct_stack"
+      printf '%s\n' "$correct_stack"
       echo ""
     fi
 
     if [ -n "$auth_model" ]; then
       echo "## Auth Model"
-      echo "$auth_model"
+      printf '%s\n' "$auth_model"
       echo ""
     fi
 
     if [ -n "$multi_tenant" ]; then
       echo "## Multi-Tenant"
-      echo "$multi_tenant"
+      printf '%s\n' "$multi_tenant"
       echo ""
     fi
 
     if [ -n "$deploy_target" ]; then
       echo "## Deploy Target"
-      echo "$deploy_target"
+      printf '%s\n' "$deploy_target"
       echo ""
     fi
 
     if [ -n "$branch_strategy" ]; then
       echo "## Branch Strategy"
-      echo "$branch_strategy"
+      printf '%s\n' "$branch_strategy"
       echo ""
     fi
 
     if [ -n "$conventions" ]; then
       echo "## Commit Format"
-      echo "$conventions"
+      printf '%s\n' "$conventions"
+      echo ""
+    fi
+
+    if [ -n "$exec_mode" ] && [ "$exec_mode" != "standard" ]; then
+      echo "## Execution Mode"
+      printf '%s\n' "$exec_mode"
+      echo ""
+    fi
+
+    if [ -n "$team_size" ] && [ "$team_size" != "solo" ]; then
+      echo "## Team Size"
+      printf '%s\n' "$team_size"
+      echo ""
+    fi
+
+    if [ -n "$protected_files" ]; then
+      echo "## Protected Files (custom)"
+      printf '%s\n' "$protected_files"
       echo ""
     fi
 
     if [ -n "$custom_rules" ]; then
       echo "## Custom Rules"
-      echo "$custom_rules"
+      printf '%s\n' "$custom_rules"
       echo ""
     fi
 
   } > "$output"
+
+  # Apply execution mode if user chose one
+  if [ -n "$exec_mode" ] && [ "$exec_mode" != "standard" ]; then
+    local mode_file="$project_dir/.tasuki/config/mode"
+    mkdir -p "$(dirname "$mode_file")"
+    printf '%s\n' "$exec_mode" > "$mode_file"
+    log_dim "  Mode set to: $exec_mode"
+  fi
+
+  # Append custom protected files
+  if [ -n "$protected_files" ]; then
+    local pf_file="$project_dir/.tasuki/config/protected-files.txt"
+    mkdir -p "$(dirname "$pf_file")"
+    # Parse comma or space-separated paths
+    printf '%s\n' "$protected_files" | tr ',' '\n' | tr ' ' '\n' | while read -r pf; do
+      pf=$(printf '%s' "$pf" | tr -d ' ')
+      [ -z "$pf" ] && continue
+      # Don't add if already there
+      if ! grep -qxF "$pf" "$pf_file" 2>/dev/null; then
+        printf '%s\n' "$pf" >> "$pf_file"
+      fi
+    done
+    log_dim "  Custom protected files added"
+  fi
 
   # Check if any answers were given
   local answers=0
@@ -387,6 +445,28 @@ run_interview() {
         echo "### Reviewer Agent"
         echo "- Branch strategy: $branch_strategy. Verify PR targets the correct base branch."
         echo ""
+      fi
+
+      # Team size directives
+      if [ -n "$team_size" ]; then
+        case "$team_size" in
+          solo)
+            echo "### Reviewer Agent"
+            echo "- Solo developer — focus reviews on correctness and security, skip style nitpicks."
+            echo "- Be thorough: no human reviewer exists as a backup."
+            echo ""
+            ;;
+          large)
+            echo "### Reviewer Agent"
+            echo "- Large team — enforce consistent style, naming conventions, and documentation."
+            echo "- Flag changes that could cause merge conflicts in commonly-edited files."
+            echo ""
+            echo "### Planner Agent"
+            echo "- Large team — break features into small, independently-mergeable PRs."
+            echo "- Note which components other team members might need to know about."
+            echo ""
+            ;;
+        esac
       fi
 
     } >> "$output"
