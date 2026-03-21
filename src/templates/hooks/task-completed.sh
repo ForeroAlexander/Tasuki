@@ -62,12 +62,26 @@ case "$TEAMMATE_NAME" in
 
   db-architect)
     # DBA must have created migration files
-    MIGRATIONS_DIR=$(grep -oP 'migrations_path:\s*\K.*' "$PROJECT_ROOT/.tasuki/config/project-facts.md" 2>/dev/null | tr -d ' ' || true)
-    if [ -n "$MIGRATIONS_DIR" ] && [ -d "$PROJECT_ROOT/$MIGRATIONS_DIR" ]; then
-      NEW_MIGRATIONS=$(find "$PROJECT_ROOT/$MIGRATIONS_DIR" -type f -mmin -60 2>/dev/null | wc -l)
-      if [ "$NEW_MIGRATIONS" -eq 0 ]; then
-        ISSUES="No new migration files found. DB Architect should create migrations before completing."
+    # Find migration directory by checking common locations (project-facts.md is markdown, not JSON)
+    MIGRATIONS_DIR=""
+    for dir in alembic/versions db/migrate database/migrations migrations prisma/migrations; do
+      if [ -d "$PROJECT_ROOT/$dir" ]; then
+        MIGRATIONS_DIR="$PROJECT_ROOT/$dir"
+        break
       fi
+    done
+
+    if [ -n "$MIGRATIONS_DIR" ]; then
+      NEW_MIGRATIONS=$(find "$MIGRATIONS_DIR" -type f -newer "$PROJECT_ROOT/.tasuki/config/pipeline-progress.json" 2>/dev/null | wc -l)
+      if [ "$NEW_MIGRATIONS" -eq 0 ]; then
+        # Fallback: check files modified in last 60 minutes
+        NEW_MIGRATIONS=$(find "$MIGRATIONS_DIR" -type f -mmin -60 2>/dev/null | wc -l)
+      fi
+      if [ "$NEW_MIGRATIONS" -eq 0 ]; then
+        ISSUES="No new migration files found in $MIGRATIONS_DIR. DB Architect should create migrations before completing."
+      fi
+    else
+      ISSUES="No migration directory found. DB Architect should create migrations before completing."
     fi
     ;;
 
@@ -99,10 +113,24 @@ case "$TEAMMATE_NAME" in
 
   reviewer)
     # Reviewer completing = final approval — verify no CRITICAL issues remain
-    if [ -f "$PROJECT_ROOT/tasuki-plans/review-latest.md" ]; then
-      CRITICALS=$(grep -c "CRITICAL" "$PROJECT_ROOT/tasuki-plans/review-latest.md" 2>/dev/null || echo "0")
-      if [ "$CRITICALS" -gt 0 ]; then
-        ISSUES="$CRITICALS CRITICAL issues still in review report. Resolve all CRITICALs before approving."
+    # Look for review file in tasuki-plans/ (newer files preferred)
+    REVIEW_FILE=$(find "$PROJECT_ROOT/tasuki-plans" -name "review*.md" -mmin -120 2>/dev/null | head -1)
+    if [ -z "$REVIEW_FILE" ]; then
+      # Also check the hardcoded path for backwards compat
+      [ -f "$PROJECT_ROOT/tasuki-plans/review-latest.md" ] && REVIEW_FILE="$PROJECT_ROOT/tasuki-plans/review-latest.md"
+    fi
+
+    if [ -z "$REVIEW_FILE" ]; then
+      ISSUES="No review file found in tasuki-plans/. Write your verdict to tasuki-plans/review-latest.md before completing."
+    else
+      # Count lines that say "CRITICAL: N" where N >= 1 (e.g. "CRITICAL: 2")
+      # Avoids false positives from markdown headings like "### CRITICAL (blocking)"
+      # or summary lines like "CRITICAL: 0"
+      ACTUAL_CRITICALS=$(grep -cP "^CRITICAL:\s*[1-9]" "$REVIEW_FILE" 2>/dev/null || echo "0")
+      ACTUAL_CRITICALS=$(echo "$ACTUAL_CRITICALS" | tr -d '[:space:]')
+      ACTUAL_CRITICALS="${ACTUAL_CRITICALS:-0}"
+      if [ "$ACTUAL_CRITICALS" -gt 0 ] 2>/dev/null; then
+        ISSUES="$ACTUAL_CRITICALS CRITICAL issue(s) in review report. Resolve all CRITICALs before approving."
       fi
     fi
     ;;

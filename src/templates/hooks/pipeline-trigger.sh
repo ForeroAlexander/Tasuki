@@ -122,8 +122,9 @@ fi
 
 # --- New task: initialize fresh state ---
 if [ "$IS_CONTINUATION" = false ]; then
-  # Clean task name (remove "tasuki:" or "tasuki " prefix)
-  TASK_NAME=$(printf '%s\n' "$PROMPT" | sed 's/^[[:space:]]*[Tt]asuki[: ]*//' | head -c 80)
+  # Clean task name: strip XML/system tags (<ide_opened_file>...</ide_opened_file>, etc.)
+  # then remove "tasuki:" prefix
+  TASK_NAME=$(printf '%s\n' "$PROMPT" | sed 's/<[^>]*>//g' | sed 's/^[[:space:]]*//' | sed 's/^[Tt]asuki[: ]*//' | tr -s ' ' | head -c 80)
   # Escape quotes for JSON safety
   TASK_NAME=$(printf '%s\n' "$TASK_NAME" | sed 's/\\/\\\\/g; s/"/\\"/g')
 

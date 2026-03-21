@@ -41,6 +41,7 @@ show_help() {
   echo -e "  tasuki ${CYAN}score${NC}     \"desc\" [path]         Analyze task complexity (1-10)"
   echo -e "  tasuki ${CYAN}route${NC}     \"desc\" [mode] [path]  Show which agents run"
   echo -e "  tasuki ${CYAN}cost${NC}      \"desc\" [mode] [path]  Estimate tokens and cost"
+  echo -e "  tasuki ${CYAN}spend${NC}     [--today|--week|--all|--json]  Real spend from JSONL sessions"
   echo ""
   echo -e "${BOLD}Plugins:${NC}"
   echo -e "  tasuki ${CYAN}install${NC}   <type> <name>         Install plugin (skill, agent, mcp)"
@@ -164,6 +165,10 @@ case "${1:-help}" in
     shift
     [ -z "${1:-}" ] && { echo -e "${RED}Usage: tasuki cost \"task\" [mode] [path]${NC}" >&2; exit 1; }
     bash "$ENGINE_DIR/cost.sh" "$1" "${2:-standard}" "${3:-.}"
+    ;;
+  spend)
+    shift || true
+    python3 "$ENGINE_DIR/spend.py" "${PWD}" "${@}"
     ;;
   install)
     shift; bash "$ENGINE_DIR/plugins.sh" install "${1:-}" "${2:-}" "${3:-.}"

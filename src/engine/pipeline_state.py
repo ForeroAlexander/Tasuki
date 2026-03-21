@@ -34,6 +34,9 @@ def update_state(f, stage_num, stage_name, file_path, tool_name,
                 'total_stages': 9,
                 'stages': {}
             }
+        else:
+            # Already completed, no new stage — nothing to do, avoid duplicate history writes
+            return
 
     stages = data.setdefault('stages', {})
 

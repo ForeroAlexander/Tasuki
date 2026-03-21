@@ -1020,9 +1020,7 @@ extract_history_data() {
     local agent_array
     agent_array=$(echo "$agents" | sed 's/,/","/g')
     local cost
-    cost=$(echo "scale=3; $duration * 0.001" | bc 2>/dev/null || echo "0.05")
-    # bc outputs .300 instead of 0.300 — fix for valid JSON
-    [[ "$cost" == .* ]] && cost="0$cost"
+    cost=0
     echo "{\"date\":\"$date\",\"mode\":\"$mode\",\"score\":$score,\"agents\":[\"$agent_array\"],\"cost\":$cost,\"task\":\"$task\"}"
   done < "$history_file"
   echo "]"

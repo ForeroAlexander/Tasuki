@@ -32,13 +32,19 @@ except:
     # Fallback: scan full input (may over-match on old_string but better than missing threats)
     CONTENT="$INPUT"
   fi
+  # If python3 extraction returned empty but we have input, use input as fallback
+  if [[ -z "$CONTENT" && -n "$INPUT" ]]; then
+    CONTENT="$INPUT"
+  fi
 fi
 
-if [[ "$TOOL_NAME" != "Edit" && "$TOOL_NAME" != "Write" ]]; then
+# Only exit 0 if we know for certain it's NOT an edit/write tool
+# If TOOL_NAME is empty (parse failure), don't silently bypass — scan anyway
+if [[ -n "$TOOL_NAME" && "$TOOL_NAME" != "Edit" && "$TOOL_NAME" != "Write" ]]; then
   exit 0
 fi
-
-if [ -z "$FILE_PATH" ]; then
+# If TOOL_NAME is empty and no content to scan, allow
+if [[ -z "$FILE_PATH" && -z "$CONTENT" ]]; then
   exit 0
 fi
 

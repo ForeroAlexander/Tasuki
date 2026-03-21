@@ -667,16 +667,15 @@ print_onboard_summary() {
 
   echo -e "  ${BOLD}Execution mode:${NC} $current_mode (change with ${CYAN}tasuki mode [fast|standard|serious]${NC})"
 
-  # Agent Teams status
-  local agent_teams_active="false"
-  if [ "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" = "1" ] || [ -f "$project_dir/.tasuki/config/agent-teams" ]; then
-    agent_teams_active="true"
-  fi
-  if [ "$agent_teams_active" = "true" ]; then
+  # Agent Teams status — Claude defaults to Agent Teams (opt-out with =0)
+  if [ "${target:-claude}" = "claude" ] && [ "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" != "0" ]; then
     echo -e "  ${BOLD}Orchestration:${NC} ${GREEN}Agent Teams${NC} (real multi-agent with separate contexts)"
+    echo -e "    ${DIM}Opt-out: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0 to disable${NC}"
   else
     echo -e "  ${BOLD}Orchestration:${NC} Sequential pipeline (single context)"
-    echo -e "    ${DIM}Enable Agent Teams: ${CYAN}export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1${NC} ${DIM}then re-onboard${NC}"
+    if [ "${target:-claude}" = "claude" ]; then
+      echo -e "    ${DIM}Agent Teams disabled (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0)${NC}"
+    fi
   fi
   echo ""
 
