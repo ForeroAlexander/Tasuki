@@ -363,6 +363,20 @@ fallback=$(printf '%s' '{"tool_input":{"file_path":"/a/b, c/we\"ird.py"},"curren
 [ "$fallback" = '/a/b, c/we\"ird.py' ]
 assert "sed fallback keeps commas and escaped quotes in paths" $?
 
+NOPY=$(mktemp -d)
+for tool in bash cat tr sed head git basename dirname grep; do
+  ln -s "$(command -v $tool)" "$NOPY/$tool" 2>/dev/null
+done
+printf '%s' '{"tool_name":"Edit","tool_input":{"file_path":"'"$HP"'/\u002eenv"}}' \
+  | (cd "$HP" && PATH="$NOPY" bash "$HOOKS_SRC/protect-files.sh" >/dev/null 2>&1)
+[ $? -eq 2 ]
+assert "protect-files fails closed on an escaped path when python3 is missing" $?
+printf '%s' '{"tool_name":"Edit","tool_input":{"file_path":"'"$HP"'/app/ok.py"}}' \
+  | (cd "$HP" && PATH="$NOPY" bash "$HOOKS_SRC/protect-files.sh" >/dev/null 2>&1)
+[ $? -eq 0 ]
+assert "protect-files still allows a plain path when python3 is missing" $?
+rm -rf "$NOPY"
+
 rm -rf "$HP"
 
 # --- Error Memory ---

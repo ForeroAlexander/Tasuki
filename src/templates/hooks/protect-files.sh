@@ -64,6 +64,13 @@ if [ -n "$INPUT" ]; then
   FILE_PATH=$(printf '%s' "$INPUT" | json_field file_path)
 fi
 
+# Without python3 the sed fallback returns the raw JSON string, escapes undecoded
+# (e.g. "\u002eenv" for ".env"). Such a path cannot be compared safely: fail closed.
+if ! command -v python3 >/dev/null 2>&1 && [[ "$FILE_PATH" == *\\* ]]; then
+  echo "BLOCKED: python3 is not available and the target path contains escape sequences that cannot be decoded safely: $FILE_PATH" >&2
+  exit 2
+fi
+
 if [ -z "$FILE_PATH" ]; then
   # Fail closed: input arrived but no path could be read from it. If the raw
   # payload mentions a protected pattern, block rather than guess.
