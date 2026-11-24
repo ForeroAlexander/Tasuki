@@ -26,12 +26,13 @@ set +o pipefail
 
 # --- JSON field reader (same block in every hook — keep in sync) ---
 # Reads JSON on stdin, prints a scalar field. Looks inside tool_input first, then top level.
-# Uses python3 (a tasuki requirement) so escaped quotes and newlines are handled;
+# Uses python3 -I (isolated: ignores the project dir and user site-packages, so a
+# planted json.py cannot hijack the hook) so escaped quotes and newlines are handled;
 # falls back to POSIX sed when python3 is missing. No GNU-only grep -P.
 json_field() {
   local key="$1"
   if command -v python3 >/dev/null 2>&1; then
-    python3 -c '
+    python3 -I -c '
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -51,7 +52,10 @@ for src in (inner, d):
         break
 ' "$key" 2>/dev/null
   else
-    tr '\n' ' ' | sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"\{0,1\}\([^",}]*\).*/\1/p' | head -1
+    # Capture a full JSON string (stops only at an unescaped quote), else a bare number.
+    tr '\n' ' ' | sed -E -n \
+      -e 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)".*/\1/p' \
+      -e 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' | head -1
   fi
 }
 # --- end JSON field reader ---

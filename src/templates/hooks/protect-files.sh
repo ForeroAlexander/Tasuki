@@ -19,12 +19,13 @@ _log_block() {
 
 # --- JSON field reader (same block in every hook — keep in sync) ---
 # Reads JSON on stdin, prints a scalar field. Looks inside tool_input first, then top level.
-# Uses python3 (a tasuki requirement) so escaped quotes and newlines are handled;
+# Uses python3 -I (isolated: ignores the project dir and user site-packages, so a
+# planted json.py cannot hijack the hook) so escaped quotes and newlines are handled;
 # falls back to POSIX sed when python3 is missing. No GNU-only grep -P.
 json_field() {
   local key="$1"
   if command -v python3 >/dev/null 2>&1; then
-    python3 -c '
+    python3 -I -c '
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -44,7 +45,10 @@ for src in (inner, d):
         break
 ' "$key" 2>/dev/null
   else
-    tr '\n' ' ' | sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"\{0,1\}\([^",}]*\).*/\1/p' | head -1
+    # Capture a full JSON string (stops only at an unescaped quote), else a bare number.
+    tr '\n' ' ' | sed -E -n \
+      -e 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)".*/\1/p' \
+      -e 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' | head -1
   fi
 }
 # --- end JSON field reader ---
@@ -61,6 +65,23 @@ if [ -n "$INPUT" ]; then
 fi
 
 if [ -z "$FILE_PATH" ]; then
+  # Fail closed: input arrived but no path could be read from it. If the raw
+  # payload mentions a protected pattern, block rather than guess.
+  if [ -n "$INPUT" ]; then
+    _RAW_CONFIG="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")/.tasuki/config/protected-files.txt"
+    if [ -f "$_RAW_CONFIG" ]; then
+      while IFS= read -r pattern; do
+        [[ "$pattern" =~ ^#.*$ || -z "$pattern" ]] && continue
+        if [[ "$INPUT" == *"$pattern"* ]]; then
+          echo "BLOCKED: could not read the target path, and the request mentions protected pattern: $pattern" >&2
+          exit 2
+        fi
+      done < "$_RAW_CONFIG"
+    elif [[ "$INPUT" == *".env"* || "$INPUT" == *"package-lock.json"* || "$INPUT" == *"pnpm-lock.yaml"* || "$INPUT" == *"yarn.lock"* ]]; then
+      echo "BLOCKED: could not read the target path, and the request mentions a protected file" >&2
+      exit 2
+    fi
+  fi
   exit 0
 fi
 

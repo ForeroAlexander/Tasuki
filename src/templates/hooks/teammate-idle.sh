@@ -11,7 +11,7 @@ set +e
 INPUT=$(cat)
 
 # Extract teammate info from hook input
-TEAMMATE_NAME=$(echo "$INPUT" | python3 -c "
+TEAMMATE_NAME=$(echo "$INPUT" | python3 -I -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
@@ -20,7 +20,7 @@ except:
     print('')
 " 2>/dev/null)
 
-TEAM_NAME=$(echo "$INPUT" | python3 -c "
+TEAM_NAME=$(echo "$INPUT" | python3 -I -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
@@ -29,7 +29,7 @@ except:
     print('')
 " 2>/dev/null)
 
-CWD=$(echo "$INPUT" | python3 -c "
+CWD=$(echo "$INPUT" | python3 -I -c "
 import sys, json
 try:
     data = json.load(sys.stdin)

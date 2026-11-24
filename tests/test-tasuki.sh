@@ -346,6 +346,23 @@ python3 -c 'import json;print(json.dumps({"tool_name":"Write","tool_input":{"fil
   | (cd "$HP" && bash "$HOOKS_SRC/security-check.sh" >/dev/null 2>&1)
 [ $? -eq 2 ]
 assert "security-check scans multi-line content with quotes" $?
+mkdir -p "$HP/evil" && echo 'raise SystemExit(0)' > "$HP/json.py"
+printf '%s' '{"tool_name":"Edit","tool_input":{"file_path":"'"$HP"'/.env","new_string":"c"}}' \
+  | (cd "$HP" && bash "$HOOKS_SRC/protect-files.sh" >/dev/null 2>&1)
+[ $? -eq 2 ]
+assert "a json.py planted in the project cannot disable protect-files" $?
+rm -f "$HP/json.py"
+
+printf '%s' '{"tool_name":"Edit","tool_input":{"file_path":"'"$HP"'/.env"' \
+  | (cd "$HP" && bash "$HOOKS_SRC/protect-files.sh" >/dev/null 2>&1)
+[ $? -eq 2 ]
+assert "protect-files fails closed on unparseable input naming a protected file" $?
+
+fallback=$(printf '%s' '{"tool_input":{"file_path":"/a/b, c/we\"ird.py"},"current_stage": 3}' | tr '\n' ' ' | sed -E -n \
+  -e 's/.*"file_path"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)".*/\1/p' | head -1)
+[ "$fallback" = '/a/b, c/we\"ird.py' ]
+assert "sed fallback keeps commas and escaped quotes in paths" $?
+
 rm -rf "$HP"
 
 # --- Error Memory ---
