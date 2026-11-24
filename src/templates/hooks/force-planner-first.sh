@@ -27,6 +27,38 @@ if [ -f "$MODE_FILE" ]; then
   [ "$MODE" = "fast" ] && exit 0
 fi
 
+# --- JSON field reader (same block in every hook — keep in sync) ---
+# Reads JSON on stdin, prints a scalar field. Looks inside tool_input first, then top level.
+# Uses python3 (a tasuki requirement) so escaped quotes and newlines are handled;
+# falls back to POSIX sed when python3 is missing. No GNU-only grep -P.
+json_field() {
+  local key="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+if not isinstance(d, dict):
+    sys.exit(0)
+inner = d.get("tool_input")
+if isinstance(inner, str):
+    try:
+        inner = json.loads(inner)
+    except Exception:
+        inner = None
+for src in (inner, d):
+    if isinstance(src, dict) and isinstance(src.get(sys.argv[1]), (str, int, float)) and not isinstance(src.get(sys.argv[1]), bool):
+        print(src[sys.argv[1]])
+        break
+' "$key" 2>/dev/null
+  else
+    tr '\n' ' ' | sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"\{0,1\}\([^",}]*\).*/\1/p' | head -1
+  fi
+}
+# --- end JSON field reader ---
+
 # Read tool input from stdin
 INPUT=""
 if [ ! -t 0 ]; then
@@ -36,7 +68,7 @@ fi
 # Extract file path being edited
 FILE_PATH=""
 if [ -n "$INPUT" ]; then
-  FILE_PATH=$(printf '%s\n' "$INPUT" | grep -oP '"file_path"\s*:\s*"\K[^"]*' 2>/dev/null || true)
+  FILE_PATH=$(printf '%s' "$INPUT" | json_field file_path)
 fi
 
 [ -z "$FILE_PATH" ] && exit 0
@@ -77,7 +109,8 @@ if [ -f "$PROGRESS_FILE" ]; then
   fi
 
   # Also check: if current_stage > 1, Planner already passed
-  CURRENT_STAGE=$(grep -oP '"current_stage"\s*:\s*\K[0-9]+' "$PROGRESS_FILE" 2>/dev/null || echo "0")
+  CURRENT_STAGE=$(json_field current_stage < "$PROGRESS_FILE" 2>/dev/null)
+  CURRENT_STAGE="${CURRENT_STAGE:-0}"
   [ "$CURRENT_STAGE" -gt 1 ] 2>/dev/null && PLAN_EXISTS=true
 fi
 

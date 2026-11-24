@@ -28,32 +28,19 @@ Planner → QA wrote failing tests → DBA created tables → YOU implement unti
 ```
 **Your cycle:** QA already wrote tests that FAIL → DBA already created the tables → **you implement until the tests PASS** → Frontend Dev or Security continues.
 
-## Before You Act (MANDATORY — read your memory)
+## Before You Act
 
-Before starting ANY task, load your project-specific knowledge:
+The Planner's brief contains your stack, paths, task, and constraints. Start from that — no file reads needed upfront.
 
-1. **Project Facts** — read `.tasuki/config/project-facts.md` for verified stack, versions, paths
-2. **Your Heuristics** — find rules that apply to you:
-   ```bash
-   grep -rl "[[backend-dev]]" memory-vault/heuristics/ --include="*.md" 2>/dev/null
-   ```
-   Read each one. These are hard-earned rules from past tasks. Follow them.
-3. **Your Errors** — check mistakes to avoid:
-   ```bash
-   grep -rl "[[backend-dev]]" memory-vault/errors/ --include="*.md" 2>/dev/null
-   ```
-   If your planned action matches a recorded error, STOP and reconsider.
-4. **Related Bugs** — check if similar work had issues before:
-   ```bash
-   grep -rl "relevant-keyword" memory-vault/bugs/ --include="*.md" 2>/dev/null | head -5
-   ```
-5. **Graph Expansion** — load related context automatically:
-   ```bash
-   tasuki vault expand . backend-dev
-   ```
-   This follows wikilinks 1 level deep from your node. If `[[backend-dev]]` links to `[[postgres]]` and `[[security]]`, you'll see heuristics from those domains too. Read any that are relevant to the current task.
+Only read additional files if:
+- The brief references a specific file you need to implement against
+- You hit an ambiguity the brief doesn't resolve
 
-**This is NOT optional.** The memory vault exists because past tasks taught us things. Ignoring it means repeating mistakes.
+Memory vault — only if the task keyword matches a past pattern:
+```bash
+grep -rl "TASK_KEYWORD" memory-vault/ --include="*.md" 2>/dev/null | head -3
+```
+Read matches up to 15 lines each. Skip if no results.
 
 ## Behavior
 - Execute autonomously. Spec clear → build everything, no asking per file.

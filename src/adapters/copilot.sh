@@ -11,9 +11,9 @@ generate_config() {
 
   # 1. Main instructions file
   local main_file="$project_dir/.github/copilot-instructions.md"
-  if [ -f "$project_dir/TASUKI.md" ]; then
+  if [ -f "$(brain_file "$project_dir")" ]; then
     sed 's/Claude Code/GitHub Copilot/g; s/\.claude\//\.github\//g' \
-      "$project_dir/TASUKI.md" > "$main_file"
+      "$(brain_file "$project_dir")" > "$main_file"
     log_dim "    copilot-instructions.md"
   fi
 

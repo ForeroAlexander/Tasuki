@@ -9,8 +9,8 @@ generate_config() {
   log_dim "  Generating .windsurfrules..."
 
   {
-    if [ -f "$project_dir/TASUKI.md" ]; then
-      sed 's/Claude Code/Windsurf/g; s/\.claude\///g' "$project_dir/TASUKI.md"
+    if [ -f "$(brain_file "$project_dir")" ]; then
+      sed 's/Claude Code/Windsurf/g; s/\.claude\///g' "$(brain_file "$project_dir")"
     fi
 
     echo ""

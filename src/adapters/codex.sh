@@ -18,9 +18,9 @@ generate_agents_md() {
   local output="$project_dir/AGENTS.md"
 
   {
-    if [ -f "$project_dir/TASUKI.md" ]; then
+    if [ -f "$(brain_file "$project_dir")" ]; then
       # Convert TASUKI.md to AGENTS.md format
-      sed 's/Claude Code/Codex/g; s/\.claude\//\.codex\//g' "$project_dir/TASUKI.md"
+      sed 's/Claude Code/Codex/g; s/\.claude\//\.codex\//g' "$(brain_file "$project_dir")"
     else
       echo "# Project Agents"
       echo ""
@@ -33,16 +33,7 @@ generate_agents_md() {
     echo "## Available Agents"
     echo ""
 
-    if [ -d "$project_dir/.tasuki/agents" ]; then
-      for agent_file in "$project_dir/.tasuki/agents"/*.md; do
-        [ -f "$agent_file" ] || continue
-        local name desc
-        name=$(basename "$agent_file" .md)
-        [ "$name" = "onboard" ] && continue
-        desc=$(grep "^description:" "$agent_file" 2>/dev/null | head -1 | sed 's/^description:\s*//' | cut -c1-80)
-        echo "- **$name**: $desc"
-      done
-    fi
+    list_agents_with_models "codex" "$project_dir" 80
   } > "$output"
 
   translate_tasuki_paths "codex" "$output"

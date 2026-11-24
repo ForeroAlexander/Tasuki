@@ -1,0 +1,26 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # macOS is informational until the remaining GNU-only calls (sed -i, grep -P) are ported
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest
+      - name: Python unit tests
+        run: python3 -m pytest tests -q
+      - name: CLI self-tests
+        run: bash tests/test-tasuki.sh < /dev/null

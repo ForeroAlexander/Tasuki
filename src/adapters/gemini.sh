@@ -8,10 +8,10 @@ generate_config() {
 
   log_dim "  Generating GEMINI.md..."
 
-  if [ -f "$project_dir/TASUKI.md" ]; then
+  if [ -f "$(brain_file "$project_dir")" ]; then
     # Convert TASUKI.md to GEMINI.md
     sed 's/Claude Code/Gemini/g; s/CLAUDE\.md/GEMINI.md/g; s/\.claude\//\.gemini\//g' \
-      "$project_dir/TASUKI.md" > "$output"
+      "$(brain_file "$project_dir")" > "$output"
   else
     echo "# Project Configuration for Gemini" > "$output"
     echo "" >> "$output"
@@ -26,18 +26,7 @@ generate_config() {
     echo "## Available Agents"
     echo ""
 
-    if [ -d "$project_dir/.tasuki/agents" ]; then
-      for agent_file in "$project_dir/.tasuki/agents"/*.md; do
-        [ -f "$agent_file" ] || continue
-        local name desc
-        name=$(basename "$agent_file" .md)
-        [ "$name" = "onboard" ] && continue
-        desc=$(grep "^description:" "$agent_file" 2>/dev/null | head -1 | sed 's/^description:\s*//' | cut -c1-80)
-        echo "### $name"
-        echo "$desc"
-        echo ""
-      done
-    fi
+    list_agents_with_models "gemini" "$project_dir" 80
   } >> "$output"
 
   translate_tasuki_paths "gemini" "$output"

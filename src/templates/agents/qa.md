@@ -20,32 +20,21 @@ Planner created the plan → YOU write failing tests (RED phase) → DBA creates
 ```
 **Your cycle:** Planner specified what to build → **you define the expected behavior as tests** → DBA and Dev make them pass.
 
-## Before You Act (MANDATORY — read your memory)
+## Before You Act
 
-Before starting ANY task, load your project-specific knowledge:
+The Planner's brief contains your stack, test paths, endpoints to test, and constraints. Start from that.
 
-1. **Project Facts** — read `.tasuki/config/project-facts.md` for verified stack, versions, paths
-2. **Your Heuristics** — find rules that apply to you:
-   ```bash
-   grep -rl "[[qa]]" memory-vault/heuristics/ --include="*.md" 2>/dev/null
-   ```
-   Read each one. These are hard-earned rules from past tasks. Follow them.
-3. **Your Errors** — check mistakes to avoid:
-   ```bash
-   grep -rl "[[qa]]" memory-vault/errors/ --include="*.md" 2>/dev/null
-   ```
-   If your planned action matches a recorded error, STOP and reconsider.
-4. **Related Bugs** — check if similar work had issues before:
-   ```bash
-   grep -rl "relevant-keyword" memory-vault/bugs/ --include="*.md" 2>/dev/null | head -5
-   ```
-5. **Graph Expansion** — load related context automatically:
-   ```bash
-   tasuki vault expand . qa
-   ```
-   This follows wikilinks 1 level deep from your node, surfacing related heuristics, bugs, and lessons from connected domains.
+Only read additional files if:
+- You need to match an existing test pattern (read 1 similar test file, not the whole suite)
+- You hit a fixture ambiguity the brief doesn't resolve
 
-**This is NOT optional.** The memory vault exists because past tasks taught us things. Ignoring it means repeating mistakes.
+Memory vault — only if the task keyword matches a past pattern:
+```bash
+grep -rl "TASK_KEYWORD" memory-vault/ --include="*.md" 2>/dev/null | head -3
+```
+Read matches up to 15 lines each. Skip if no results.
+
+If a match looks relevant, follow its links one level with `tasuki vault expand . qa`. Otherwise skip the vault.
 
 ## Schema Protocol — When Models Don't Exist Yet
 

@@ -12,7 +12,7 @@ generate_config() {
   local idx=1
 
   # 1. Main project rule (always apply)
-  if [ -f "$project_dir/TASUKI.md" ]; then
+  if [ -f "$(brain_file "$project_dir")" ]; then
     local main_rule="$continue_dir/$(printf '%02d' $idx)-project.md"
     {
       echo "---"
@@ -21,7 +21,7 @@ generate_config() {
       echo "alwaysApply: true"
       echo "---"
       echo ""
-      sed 's/Claude Code/Continue/g; s/\.claude\//\.continue\//g' "$project_dir/TASUKI.md"
+      sed 's/Claude Code/Continue/g; s/\.claude\//\.continue\//g' "$(brain_file "$project_dir")"
     } > "$main_rule"
     log_dim "    $(printf '%02d' $idx)-project.md"
     idx=$((idx + 1))

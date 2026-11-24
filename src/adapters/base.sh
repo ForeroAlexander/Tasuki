@@ -44,6 +44,39 @@ is_valid_target() {
   return 1
 }
 
+# Source "brain" file for non-Claude targets.
+# TASUKI.md in a Claude project uses Agent Teams spawn syntax, which other tools
+# cannot execute. Onboard also renders a role-switching copy; prefer it when present.
+brain_file() {
+  local project_dir="$1"
+  local legacy="$project_dir/.tasuki/config/TASUKI-legacy.md"
+  if [ -f "$legacy" ]; then
+    echo "$legacy"
+  else
+    echo "$project_dir/TASUKI.md"
+  fi
+}
+
+# Print one markdown bullet per agent with the model the target platform should use.
+# Usage: list_agents_with_models <target> <project_dir> [desc_max_chars]
+list_agents_with_models() {
+  local target="$1" project_dir="$2" max="${3:-200}"
+  local agent_file name desc tier model
+  [ -d "$project_dir/.tasuki/agents" ] || return 0
+  for agent_file in "$project_dir/.tasuki/agents"/*.md; do
+    [ -f "$agent_file" ] || continue
+    name=$(basename "$agent_file" .md)
+    [ "$name" = "onboard" ] && continue
+    desc=$(grep "^description:" "$agent_file" 2>/dev/null | head -1 | sed 's/^description:[[:space:]]*//' | cut -c1-"$max")
+    tier=$(grep "^model:" "$agent_file" 2>/dev/null | head -1 | sed 's/^model:[[:space:]]*//' | tr -d ' ')
+    model="$tier"
+    if declare -F translate_model >/dev/null; then
+      model=$(translate_model "$target" "${tier:-sonnet}")
+    fi
+    echo "- **$name** (model: ${model:-default}): $desc"
+  done
+}
+
 # Run adapter for a specific target
 # Translate .tasuki/ paths and Claude-specific references in generated content
 # Called by adapters after copying agent/rule content to target format

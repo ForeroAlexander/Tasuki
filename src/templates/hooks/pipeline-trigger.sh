@@ -24,13 +24,45 @@
 set +e
 set +o pipefail
 
+# --- JSON field reader (same block in every hook — keep in sync) ---
+# Reads JSON on stdin, prints a scalar field. Looks inside tool_input first, then top level.
+# Uses python3 (a tasuki requirement) so escaped quotes and newlines are handled;
+# falls back to POSIX sed when python3 is missing. No GNU-only grep -P.
+json_field() {
+  local key="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+if not isinstance(d, dict):
+    sys.exit(0)
+inner = d.get("tool_input")
+if isinstance(inner, str):
+    try:
+        inner = json.loads(inner)
+    except Exception:
+        inner = None
+for src in (inner, d):
+    if isinstance(src, dict) and isinstance(src.get(sys.argv[1]), (str, int, float)) and not isinstance(src.get(sys.argv[1]), bool):
+        print(src[sys.argv[1]])
+        break
+' "$key" 2>/dev/null
+  else
+    tr '\n' ' ' | sed -n 's/.*"'"$key"'"[[:space:]]*:[[:space:]]*"\{0,1\}\([^",}]*\).*/\1/p' | head -1
+  fi
+}
+# --- end JSON field reader ---
+
 # Read the user's prompt from stdin
 if [ -t 0 ]; then
   exit 0
 fi
 
 INPUT=$(cat)
-PROMPT=$(printf '%s\n' "$INPUT" | grep -oP '"prompt"\s*:\s*"\K[^"]*' 2>/dev/null || true)
+PROMPT=$(printf '%s' "$INPUT" | json_field prompt)
 
 [ -z "$PROMPT" ] && exit 0
 
@@ -108,9 +140,10 @@ CURRENT_STAGE=0
 CURRENT_TASK=""
 
 if [ -f "$PROGRESS_FILE" ]; then
-  CURRENT_STAGE=$(grep -oP '"current_stage"\s*:\s*\K[0-9]+' "$PROGRESS_FILE" 2>/dev/null | head -1 || echo "0")
-  CURRENT_STATUS=$(grep -oP '"status"\s*:\s*"\K[^"]*' "$PROGRESS_FILE" 2>/dev/null | head -1 || echo "")
-  CURRENT_TASK=$(grep -oP '"task"\s*:\s*"\K[^"]*' "$PROGRESS_FILE" 2>/dev/null | head -1 || echo "")
+  CURRENT_STAGE=$(json_field current_stage < "$PROGRESS_FILE" 2>/dev/null)
+  CURRENT_STAGE="${CURRENT_STAGE:-0}"
+  CURRENT_STATUS=$(json_field status < "$PROGRESS_FILE" 2>/dev/null)
+  CURRENT_TASK=$(json_field task < "$PROGRESS_FILE" 2>/dev/null)
 
   # Continuation if: pipeline is running AND user says continue/next/keep going
   if [ "$CURRENT_STATUS" = "running" ] && [ "$CURRENT_STAGE" -gt 0 ]; then

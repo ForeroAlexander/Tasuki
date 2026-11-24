@@ -1,10 +1,10 @@
 {
   "name": "tasuki",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Multi-agent orchestration framework for software development. 9 specialized agents, capability-based routing, TDD enforcement, knowledge graph memory, and interactive dashboard.",
   "author": "forero",
   "license": "MIT",
-  "homepage": "https://github.com/forero/tasuki",
+  "homepage": "https://github.com/ForeroAlexander/Tasuki",
   "keywords": [
     "multi-agent",
     "orchestration",

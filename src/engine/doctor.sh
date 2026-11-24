@@ -184,22 +184,16 @@ doctor() {
       local agent_name
       agent_name=$(basename "$agent_file" .md)
 
-      # Check if agent has "Before You Act" section
+      # Every agent needs a "Before You Act" section (context is loaded on demand from the brief)
       if grep -q "Before You Act" "$agent_file" 2>/dev/null; then
-        # Check if it has vault expand
-        if grep -q "vault expand" "$agent_file" 2>/dev/null; then
-          agents_ok=$((agents_ok + 1))
-        else
-          log_warn "    $agent_name: missing vault expand in Before You Act"
-          warnings=$((warnings + 1))
-        fi
+        agents_ok=$((agents_ok + 1))
       else
         log_warn "    $agent_name: missing Before You Act section"
         warnings=$((warnings + 1))
       fi
     done
     if [ "$agents_ok" -eq "$agents_total" ] && [ "$agents_total" -gt 0 ]; then
-      log_dim "    All $agents_total agents have Before You Act + vault expand"
+      log_dim "    All $agents_total agents have a Before You Act section"
     fi
     echo ""
 

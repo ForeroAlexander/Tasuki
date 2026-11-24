@@ -58,7 +58,7 @@ done
 ISSUES=""
 
 # Gate 1: Run tests if test command is configured
-TEST_CMD=$(grep -oP '"test_command":\s*"\K[^"]*' "$PROJECT_ROOT/.tasuki/config/project-facts.md" 2>/dev/null || true)
+TEST_CMD=$(sed -n 's/.*"test_command":[[:space:]]*"\([^"]*\)".*/\1/p' "$PROJECT_ROOT/.tasuki/config/project-facts.md" 2>/dev/null | head -1)
 if [ -z "$TEST_CMD" ]; then
   # Fallback: try common test runners
   if [ -f "$PROJECT_ROOT/package.json" ]; then

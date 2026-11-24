@@ -76,6 +76,7 @@ onboard_project() {
   fi
 
   # Phase 3: Render internal config (agents, rules, hooks, skills — needed by all targets)
+  DETECTED[target]="${target:-claude}"
   render_project
 
   # Phase 3b: Apply domain profiles (industry-specific directives)
@@ -359,8 +360,9 @@ if agent_teams:
         'hooks': [
             {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/protect-files.sh'},
             {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/security-check.sh'},
-            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/tdd-guard.sh'},
-            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/force-agent-read.sh'}
+            {'type': 'command', 'command': f'{project_dir}/.tasuki/hooks/tdd-guard.sh'}
+            # force-agent-read omitted: relies on pipeline-tracker log which is absent
+            # in Agent Teams mode. Enforcement is via spawn prompt instead.
         ]
     }
     hooks['PreToolUse'] = [edit_hooks]

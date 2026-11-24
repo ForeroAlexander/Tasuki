@@ -80,10 +80,10 @@ generate_cursorrules() {
   local project_dir="$1"
   local output="$project_dir/.cursorrules"
 
-  if [ -f "$project_dir/TASUKI.md" ]; then
+  if [ -f "$(brain_file "$project_dir")" ]; then
     # Convert TASUKI.md to .cursorrules (strip Claude-specific references)
     sed 's/Claude Code/Cursor/g; s/\.claude\//\.cursor\//g; s/CLAUDE\.md/.cursorrules/g' \
-      "$project_dir/TASUKI.md" > "$output"
+      "$(brain_file "$project_dir")" > "$output"
     log_dim "    .cursorrules (from TASUKI.md)"
   fi
 }

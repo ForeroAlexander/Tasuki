@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-TASUKI_VERSION="1.0.1"
+TASUKI_VERSION="1.1.0"
 # Resolve symlinks (npm global install creates symlinks)
 TASUKI_BIN="$0"
 if [ -L "$TASUKI_BIN" ]; then

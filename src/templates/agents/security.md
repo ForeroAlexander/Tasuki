@@ -20,32 +20,17 @@ All code is written (Backend + Frontend) → YOU audit everything → Reviewer f
 ```
 **Your cycle:** Dev/FrontDev finished implementing → **you audit all changed code** → delegate fixes → re-audit → verdict → Reviewer.
 
-## Before You Act (MANDATORY — read your memory)
+## Before You Act
 
-Before starting ANY task, load your project-specific knowledge:
+The Planner's brief contains changed file paths, new endpoints, and auth patterns. Start from that.
 
-1. **Project Facts** — read `.tasuki/config/project-facts.md` for verified stack, versions, paths
-2. **Your Heuristics** — find rules that apply to you:
-   ```bash
-   grep -rl "[[security]]" memory-vault/heuristics/ --include="*.md" 2>/dev/null
-   ```
-   Read each one. These are hard-earned rules from past tasks. Follow them.
-3. **Your Errors** — check mistakes to avoid:
-   ```bash
-   grep -rl "[[security]]" memory-vault/errors/ --include="*.md" 2>/dev/null
-   ```
-   If your planned action matches a recorded error, STOP and reconsider.
-4. **Related Bugs** — check if similar work had issues before:
-   ```bash
-   grep -rl "relevant-keyword" memory-vault/bugs/ --include="*.md" 2>/dev/null | head -5
-   ```
-5. **Graph Expansion** — load related context automatically:
-   ```bash
-   tasuki vault expand . security
-   ```
-   This follows wikilinks 1 level deep from your node, surfacing related heuristics, bugs, and lessons from connected domains.
+Only read source files if you need to verify a specific vulnerability (read the specific file, not the codebase).
 
-**This is NOT optional.** The memory vault exists because past tasks taught us things. Ignoring it means repeating mistakes.
+Memory vault — only if the task matches a past vulnerability pattern:
+```bash
+grep -rl "TASK_KEYWORD" memory-vault/ --include="*.md" 2>/dev/null | head -3
+```
+Read matches up to 15 lines each. Skip if no results.
 
 
 ## Seniority Expectations

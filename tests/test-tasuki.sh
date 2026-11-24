@@ -289,6 +289,65 @@ $TASUKI adapt gemini "$MOCK" >/dev/null 2>&1
 grep -q "gemini-2.5" "$MOCK/GEMINI.md" 2>/dev/null
 assert "gemini uses gemini-2.5 models" $?
 
+grep -q "Agent(" "$MOCK/AGENTS.md" 2>/dev/null
+[ $? -ne 0 ]
+assert "codex output has no Claude-only Agent() spawn syntax" $?
+
+# --- Regression: refactor leftovers ---
+echo ""
+echo -e "${BOLD}Generated Context:${NC}"
+
+[ -s "$MOCK/.tasuki/config/context-summary.md" ]
+assert "onboard generates context-summary.md" $?
+
+missing=0
+while IFS= read -r rel; do
+  [ -e "$MOCK/$rel" ] || missing=$((missing + 1))
+done < <(sed -n '/^## Paths/,/^## /p' "$MOCK/.tasuki/config/context-summary.md" 2>/dev/null | sed -n 's/.*`\([^`]*\)`.*/\1/p')
+[ "$missing" -eq 0 ]
+assert "context-summary.md lists only paths that exist" $?
+
+grep -q "/routers/\|/services/" "$MOCK/.tasuki/agents/planner.md" 2>/dev/null
+[ $? -ne 0 ]
+assert "planner.md does not assume routers/ or services/ directories" $?
+
+# frontend-dev.md is excluded: the cleanup test above copies the raw template in by hand
+unrendered=$(grep -l "{{[A-Z_]*}}" "$MOCK/.tasuki/agents/"*.md "$MOCK/TASUKI.md" 2>/dev/null | grep -v "frontend-dev.md" | wc -l)
+[ "$unrendered" -eq 0 ]
+assert "no unrendered {{PLACEHOLDER}} in agents or TASUKI.md" $?
+
+pkg_version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$TASUKI_ROOT/package.json" | head -1)
+cli_version=$($TASUKI --version 2>/dev/null | sed -n 's/.*v\([0-9][0-9.]*\).*/\1/p' | head -1)
+plugin_version=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$TASUKI_ROOT/.claude-plugin/manifest.json" | head -1)
+[ -n "$pkg_version" ] && [ "$pkg_version" = "$cli_version" ] && [ "$pkg_version" = "$plugin_version" ]
+assert "package.json, CLI and plugin manifest report the same version ($pkg_version)" $?
+
+# --- Hook input parsing ---
+echo ""
+echo -e "${BOLD}Hook Input Parsing:${NC}"
+
+HOOKS_SRC="$TASUKI_ROOT/src/templates/hooks"
+! grep -l "grep -oP" "$HOOKS_SRC"/*.sh >/dev/null 2>&1
+assert "hooks do not parse JSON with GNU-only grep -oP" $?
+
+HP=$(mktemp -d); mkdir -p "$HP/.tasuki/config" "$HP/app"
+printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"'"$HP"'/app/we\"ird.py","content":"x = 1"}}' \
+  | (cd "$HP" && bash "$HOOKS_SRC/tdd-guard.sh" >/dev/null 2>&1)
+[ $? -eq 2 ]
+assert "tdd-guard still blocks when the path contains an escaped quote" $?
+
+echo ".env" > "$HP/.tasuki/config/protected-files.txt"
+printf '%s' '{"tool_name":"Edit","tool_input":{"old_string":"a \"b\"","file_path":"'"$HP"'/.env","new_string":"c"}}' \
+  | (cd "$HP" && bash "$HOOKS_SRC/protect-files.sh" >/dev/null 2>&1)
+[ $? -eq 2 ]
+assert "protect-files blocks a protected file with quoted content before the path" $?
+
+python3 -c 'import json;print(json.dumps({"tool_name":"Write","tool_input":{"file_path":"/x/app/db.py","content":"q = \"a\"\ncur.execute(f\"select {x}\")\n"}}))' \
+  | (cd "$HP" && bash "$HOOKS_SRC/security-check.sh" >/dev/null 2>&1)
+[ $? -eq 2 ]
+assert "security-check scans multi-line content with quotes" $?
+rm -rf "$HP"
+
 # --- Error Memory ---
 echo ""
 echo -e "${BOLD}Error Memory:${NC}"

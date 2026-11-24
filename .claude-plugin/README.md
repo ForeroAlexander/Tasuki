@@ -10,11 +10,11 @@ Tasuki transforms any codebase into a fully-configured Claude Code multi-agent p
 
 ```bash
 # From Claude Code marketplace
-/plugin marketplace add forero/tasuki
+/plugin marketplace add ForeroAlexander/Tasuki
 
 # Or manually
-git clone https://github.com/forero/tasuki.git
-cd tasuki && bash install.sh
+git clone https://github.com/ForeroAlexander/Tasuki.git
+cd Tasuki && bash install.sh
 ```
 
 ## Quick Start

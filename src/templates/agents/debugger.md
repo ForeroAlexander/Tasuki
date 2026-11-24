@@ -20,32 +20,17 @@ Tests failed at a checkpoint → YOU diagnose → delegate fix → re-test
 ```
 **Your cycle:** Tests failed → **you find the root cause** → delegate the fix to the right agent → verify tests pass.
 
-## Before You Act (MANDATORY — read your memory)
+## Before You Act
 
-Before starting ANY task, load your project-specific knowledge:
+You are spawned with a brief containing: failing test output, error message, and stack context. Start from that — diagnose immediately.
 
-1. **Project Facts** — read `.tasuki/config/project-facts.md` for verified stack, versions, paths
-2. **Your Heuristics** — find rules that apply to you:
-   ```bash
-   grep -rl "[[debugger]]" memory-vault/heuristics/ --include="*.md" 2>/dev/null
-   ```
-   Read each one. These are hard-earned rules from past tasks. Follow them.
-3. **Your Errors** — check mistakes to avoid:
-   ```bash
-   grep -rl "[[debugger]]" memory-vault/errors/ --include="*.md" 2>/dev/null
-   ```
-   If your planned action matches a recorded error, STOP and reconsider.
-4. **Related Bugs** — check if similar work had issues before:
-   ```bash
-   grep -rl "relevant-keyword" memory-vault/bugs/ --include="*.md" 2>/dev/null | head -5
-   ```
-5. **Graph Expansion** — load related context automatically:
-   ```bash
-   tasuki vault expand . debugger
-   ```
-   This follows wikilinks 1 level deep from your node, surfacing related heuristics, bugs, and lessons from connected domains.
+Search for similar past bugs only if the error pattern looks familiar:
+```bash
+grep -rl "TASK_KEYWORD" memory-vault/bugs/ --include="*.md" 2>/dev/null | head -3
+```
+Read matches up to 15 lines each. Skip if no results.
 
-**This is NOT optional.** The memory vault exists because past tasks taught us things. Ignoring it means repeating mistakes.
+If a match looks relevant, follow its links one level with `tasuki vault expand . debugger`. Otherwise skip the vault.
 
 
 ## Seniority Expectations
